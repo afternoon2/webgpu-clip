@@ -120,12 +120,35 @@ async function clip(canvas, canvasWidth, canvasHeight, polygon, lines) {
           let polygonMask = textureSample(u_polygonTexture, u_polygonSampler, uv).r;
           let lineMask = textureSample(u_lineTexture, u_lineSampler, uv).r;
 
-          // If both the polygon and line mask are active, render the clipped line
-          if (polygonMask > 0.5 && lineMask > 0.5) {
-            return vec4<f32>(1.0, 0.0, 0.0, 1.0); // Red for visible segments
+          // Perform edge detection in a uniform way
+          let neighbors = array<vec2<f32>, 4>(
+            vec2<f32>(0.001, 0.0),
+            vec2<f32>(-0.001, 0.0),
+            vec2<f32>(0.0, 0.001),
+            vec2<f32>(0.0, -0.001)
+          );
+
+          var isEdge = false;
+          for (var i = 0u; i < 4u; i = i + 1u) {
+            let neighborUv = uv + neighbors[i];
+            let neighborMask = textureSample(u_polygonTexture, u_polygonSampler, neighborUv).r;
+            if (polygonMask > 0.5 && neighborMask < 0.5) {
+              isEdge = true;
+            }
           }
 
-          // Otherwise, render nothing
+          // Colors
+          let edgeColor = vec4<f32>(0.0, 0.0, 1.0, 1.0); // Blue for edges
+          let lineColor = vec4<f32>(1.0, 0.0, 0.0, 1.0); // Red for visible lines
+
+          // Render logic
+          if (polygonMask > 0.5 && lineMask > 0.5) {
+            return lineColor; // Render clipped line
+          } else if (isEdge) {
+            return edgeColor; // Render polygon edge
+          }
+
+          // Background
           return vec4<f32>(0.0, 0.0, 0.0, 1.0);
         }`,
     });
