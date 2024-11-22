@@ -9,9 +9,9 @@ const SHADER = `
       end: vec2<f32>
     };
 
-    @group(0) @binding(0) var<storage, read> lines: array<Line>; // Read-only storage
-    @group(0) @binding(1) var<storage, read> edges: array<Edge>; // Read-only storage
-    @group(0) @binding(2) var<storage, read_write> clippedLines: array<Line>; // Read-write storage
+    @group(0) @binding(0) var<storage, read> lines: array<Line>;
+    @group(0) @binding(1) var<storage, read> edges: array<Edge>;
+    @group(0) @binding(2) var<storage, read_write> clippedLines: array<Line>;
 
     fn lineIntersection(p1: vec2<f32>, p2: vec2<f32>, p3: vec2<f32>, p4: vec2<f32>) -> vec2<f32> {
       let s1 = p2 - p1;
@@ -41,26 +41,44 @@ const SHADER = `
       }
 
       let line = lines[lineIndex];
-      var newStart: vec2<f32> = line.start;
-      var newEnd: vec2<f32> = line.end;
+      var intersectionPoints: array<vec2<f32>, 2> = array<vec2<f32>, 2>(
+        vec2<f32>(-1.0, -1.0),
+        vec2<f32>(-1.0, -1.0)
+      );
+
+      var count = 0u;
 
       for (var i = 0u; i < arrayLength(&edges); i = i + 1u) {
         let edge = edges[i];
 
         let intersection = lineIntersection(line.start, line.end, edge.start, edge.end);
 
-        // Check for valid intersection
         if (intersection.x != -1.0 || intersection.y != -1.0) {
-          let point = intersection;
-          if (dot(point - line.start, line.end - line.start) > 0.0) {
-            newEnd = point;
-          } else {
-            newStart = point;
+          if (count < 2u) {
+            intersectionPoints[count] = intersection;
+            count = count + 1u;
           }
         }
       }
 
-      clippedLines[lineIndex] = Line(newStart, newEnd);
+      // Ensure intersections are in the correct order (closest to start point first)
+      if (count == 2u) {
+        let d1 = distance(intersectionPoints[0], line.start);
+        let d2 = distance(intersectionPoints[1], line.start);
+        if (d1 > d2) {
+          let temp = intersectionPoints[0];
+          intersectionPoints[0] = intersectionPoints[1];
+          intersectionPoints[1] = temp;
+        }
+      }
+
+      // If there are 2 valid intersection points, use them as the clipped line
+      if (count == 2u) {
+        clippedLines[lineIndex] = Line(intersectionPoints[0], intersectionPoints[1]);
+      } else {
+        // If no valid clipped line, store the original line
+        clippedLines[lineIndex] = Line(line.start, line.end);
+      }
     }
 `;
 
