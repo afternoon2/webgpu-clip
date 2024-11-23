@@ -32,16 +32,23 @@ export async function clipLinesWithCompute(lines, polygon) {
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
   });
 
-  const debugBufferSize =
-    lines.length * 16 * 2 * Float32Array.BYTES_PER_ELEMENT; // Max 16 points per line, 2 floats per point
-  const debugBuffer = device.createBuffer({
-    size: debugBufferSize,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-  });
-
   const readClippedLinesBuffer = device.createBuffer({
     size: clippedLinesBuffer.size,
     usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+  });
+
+  const intersectionSize = 3 * Float32Array.BYTES_PER_ELEMENT; // Size of one Intersection
+  const maxIntersectionsPerLine = 16; // Adjust as needed
+  const totalIntersections = lines.length * maxIntersectionsPerLine;
+
+  const intersectionsBuffer = device.createBuffer({
+    size: totalIntersections * intersectionSize,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+  });
+
+  const debugBuffer = device.createBuffer({
+    size: totalIntersections * intersectionSize,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
   });
 
   const readDebugBuffer = device.createBuffer({
@@ -49,7 +56,12 @@ export async function clipLinesWithCompute(lines, polygon) {
     usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
   });
 
-  // Read the debug buffer
+  const clearBuffer = () => {
+    const clearData = new Float32Array(totalIntersections * 2).fill(-1.0); // Fill with sentinel value
+    device.queue.writeBuffer(intersectionsBuffer, 0, clearData);
+  };
+
+  clearBuffer();
 
   // Compute pipeline
   const shaderModule = device.createShaderModule({
@@ -70,8 +82,9 @@ export async function clipLinesWithCompute(lines, polygon) {
     entries: [
       { binding: 0, resource: { buffer: lineBuffer } },
       { binding: 1, resource: { buffer: edgeBuffer } },
-      { binding: 2, resource: { buffer: clippedLinesBuffer } },
+      { binding: 2, resource: { buffer: intersectionsBuffer } },
       { binding: 3, resource: { buffer: debugBuffer } },
+      { binding: 4, resource: { buffer: clippedLinesBuffer } },
     ],
   });
 
