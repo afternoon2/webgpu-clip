@@ -79,7 +79,7 @@ export class GPULineClipper {
         lines.length *
         this.maxIntersectionsPerLine *
         4 *
-        Float32Array.BYTES_PER_ELEMENT, // Max 16 segments per line, 4 floats per segment
+        Float32Array.BYTES_PER_ELEMENT, // maxIntersectionsPerLine segments per line, 4 floats per segment
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
     });
 
