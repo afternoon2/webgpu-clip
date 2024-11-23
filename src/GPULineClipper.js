@@ -99,16 +99,6 @@ export class GPULineClipper {
         GPUBufferUsage.COPY_DST,
     });
 
-    const debugBuffer = this.#device.createBuffer({
-      size: totalIntersections * intersectionSize,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-    });
-
-    const readDebugBuffer = this.#device.createBuffer({
-      size: debugBuffer.size,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-    });
-
     const clearBuffer = () => {
       const clearData = new Float32Array(totalIntersections * 2).fill(-1.0); // Fill with sentinel value
       this.#device.queue.writeBuffer(intersectionsBuffer, 0, clearData);
@@ -121,23 +111,13 @@ export class GPULineClipper {
       code: shader,
     });
 
-    // Pipeline and bind group
-    const pipeline = this.#device.createComputePipeline({
-      layout: "auto",
-      compute: {
-        module: shaderModule,
-        entryPoint: "main",
-      },
-    });
-
     const bindGroup = this.#device.createBindGroup({
       layout: this.#pipeline.getBindGroupLayout(0),
       entries: [
         { binding: 0, resource: { buffer: lineBuffer } },
         { binding: 1, resource: { buffer: edgeBuffer } },
         { binding: 2, resource: { buffer: intersectionsBuffer } },
-        { binding: 3, resource: { buffer: debugBuffer } },
-        { binding: 4, resource: { buffer: clippedLinesBuffer } },
+        { binding: 3, resource: { buffer: clippedLinesBuffer } },
       ],
     });
 
@@ -155,13 +135,6 @@ export class GPULineClipper {
       0,
       clippedLinesBuffer.size
     );
-    commandEncoder.copyBufferToBuffer(
-      debugBuffer,
-      0,
-      readDebugBuffer,
-      0,
-      debugBuffer.size
-    );
     this.#device.queue.submit([commandEncoder.finish()]);
 
     // Read buffers
@@ -177,11 +150,6 @@ export class GPULineClipper {
       ]);
     }
     readClippedLinesBuffer.unmap();
-
-    await readDebugBuffer.mapAsync(GPUMapMode.READ);
-    const debugData = new Float32Array(readDebugBuffer.getMappedRange());
-    console.log("Debug Data:", debugData);
-    readDebugBuffer.unmap();
 
     return clippedLines.filter(
       (line) => !line.every((pt) => pt.X === 0 && pt.Y === 0)

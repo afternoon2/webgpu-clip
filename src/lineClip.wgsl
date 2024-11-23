@@ -21,8 +21,7 @@ struct Edge {
 @group(0) @binding(0) var<storage, read> lines: array<Line>;
 @group(0) @binding(1) var<storage, read> edges: array<Edge>;
 @group(0) @binding(2) var<storage, read_write> intersectionsBuffer: array<Intersection>;
-@group(0) @binding(3) var<storage, read_write> debugBuffer: array<Intersection>;
-@group(0) @binding(4) var<storage, read_write> clippedLinesBuffer: array<Line>;
+@group(0) @binding(3) var<storage, read_write> clippedLinesBuffer: array<Line>;
 
 fn lineIntersection(p1: Point, p2: Point, p3: Point, p4: Point) -> Intersection {
   let s1 = vec2<f32>(p2.X - p1.X, p2.Y - p1.Y);
@@ -56,9 +55,6 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   let intersectionsPerLine = totalIntersections / arrayLength(&lines);
   let baseOffset = lineIndex * intersectionsPerLine;
 
-  // Debug buffer offset
-  let debugBaseOffset = lineIndex * intersectionsPerLine;
-
   // Clipped lines offset
   let clippedBaseOffset = lineIndex * intersectionsPerLine;
 
@@ -73,7 +69,6 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     if (result.isValid == 1u) {
       if (count < intersectionsPerLine) {
         intersectionsBuffer[baseOffset + count] = result;
-        debugBuffer[debugBaseOffset + count] = result; // Write to debug buffer
         count = count + 1u;
       }
     }
@@ -113,6 +108,5 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   // Optional: Mark unused slots in buffers with a sentinel value
   for (var i = count; i < intersectionsPerLine; i = i + 1u) {
     intersectionsBuffer[baseOffset + i] = Intersection(Point(-1.0, -1.0), 0);
-    debugBuffer[debugBaseOffset + i] = Intersection(Point(-1.0, -1.0), 0);
   }
 }
