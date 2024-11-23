@@ -1,126 +1,135 @@
 import shader from "./lineClip.wgsl?raw";
 
 export async function clipLinesWithCompute(lines, polygon) {
-    const adapter = await navigator.gpu.requestAdapter();
-    const device = await adapter.requestDevice();
+  const adapter = await navigator.gpu.requestAdapter();
+  const device = await adapter.requestDevice();
 
-    // Prepare the data
-    const lineData = new Float32Array(
-        lines.flatMap(([start, end]) => [start.X, start.Y, end.X, end.Y]),
-    );
-    const edgeData = new Float32Array(
-        polygon[0]
-            .map((point, i, points) => {
-                const nextPoint = points[(i + 1) % points.length];
-                return [point.X, point.Y, nextPoint.X, nextPoint.Y];
-            })
-            .flat(),
-    );
+  const edgeData = new Float32Array(convertPolygonToEdges(polygon));
+  const lineData = new Float32Array(
+    lines.flatMap((line) => [line[0].X, line[0].Y, line[1].X, line[1].Y])
+  );
 
-    // Buffers
-    const lineBuffer = device.createBuffer({
-        size: lineData.byteLength,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    });
-    device.queue.writeBuffer(lineBuffer, 0, lineData);
+  // Buffers
+  // Create buffers
+  const edgeBuffer = device.createBuffer({
+    size: edgeData.byteLength,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+    mappedAtCreation: true,
+  });
+  new Float32Array(edgeBuffer.getMappedRange()).set(edgeData);
+  edgeBuffer.unmap();
 
-    const edgeBuffer = device.createBuffer({
-        size: edgeData.byteLength,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    });
-    device.queue.writeBuffer(edgeBuffer, 0, edgeData);
+  const lineBuffer = device.createBuffer({
+    size: lineData.byteLength,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+    mappedAtCreation: true,
+  });
+  new Float32Array(lineBuffer.getMappedRange()).set(lineData);
+  lineBuffer.unmap();
 
-    const clippedLineBuffer = device.createBuffer({
-        size: lineData.byteLength,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-    });
+  const clippedLinesBuffer = device.createBuffer({
+    size: lines.length * 16 * 4 * Float32Array.BYTES_PER_ELEMENT, // Max 16 segments per line, 4 floats per segment
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+  });
 
-    // Bind group layout
-    const bindGroupLayout = device.createBindGroupLayout({
-        entries: [
-            {
-                binding: 0,
-                visibility: GPUShaderStage.COMPUTE,
-                buffer: { type: "read-only-storage" },
-            },
-            {
-                binding: 1,
-                visibility: GPUShaderStage.COMPUTE,
-                buffer: { type: "read-only-storage" },
-            },
-            {
-                binding: 2,
-                visibility: GPUShaderStage.COMPUTE,
-                buffer: { type: "storage" },
-            },
-        ],
-    });
+  const debugBufferSize =
+    lines.length * 16 * 2 * Float32Array.BYTES_PER_ELEMENT; // Max 16 points per line, 2 floats per point
+  const debugBuffer = device.createBuffer({
+    size: debugBufferSize,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+  });
 
-    // Bind group
-    const bindGroup = device.createBindGroup({
-        layout: bindGroupLayout,
-        entries: [
-            { binding: 0, resource: { buffer: lineBuffer } },
-            { binding: 1, resource: { buffer: edgeBuffer } },
-            { binding: 2, resource: { buffer: clippedLineBuffer } },
-        ],
-    });
+  const readClippedLinesBuffer = device.createBuffer({
+    size: clippedLinesBuffer.size,
+    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+  });
 
-    // Compute pipeline
-    const shaderModule = device.createShaderModule({
-        code: shader,
-    });
+  const readDebugBuffer = device.createBuffer({
+    size: debugBuffer.size,
+    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+  });
 
-    const computePipeline = device.createComputePipeline({
-        layout: device.createPipelineLayout({
-            bindGroupLayouts: [bindGroupLayout],
-        }),
-        compute: {
-            module: shaderModule,
-            entryPoint: "main",
-        },
-    });
+  // Read the debug buffer
 
-    // Read back clipped lines
-    const clippedLineData = new Float32Array(lineData.length);
-    const readBuffer = device.createBuffer({
-        size: clippedLineData.byteLength,
-        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-    });
+  // Compute pipeline
+  const shaderModule = device.createShaderModule({
+    code: shader,
+  });
 
-    // Dispatch Compute Pass
-    const computeEncoder = device.createCommandEncoder();
-    const passEncoder = computeEncoder.beginComputePass();
-    passEncoder.setPipeline(computePipeline);
-    passEncoder.setBindGroup(0, bindGroup);
-    passEncoder.dispatchWorkgroups(lines.length);
-    passEncoder.end();
-    device.queue.submit([computeEncoder.finish()]);
+  // Pipeline and bind group
+  const pipeline = device.createComputePipeline({
+    layout: "auto",
+    compute: {
+      module: shaderModule,
+      entryPoint: "main",
+    },
+  });
 
-    // Copy Results to Readable Buffer
-    const copyEncoder = device.createCommandEncoder();
-    copyEncoder.copyBufferToBuffer(
-        clippedLineBuffer,
-        0,
-        readBuffer,
-        0,
-        clippedLineData.byteLength,
-    );
-    device.queue.submit([copyEncoder.finish()]);
+  const bindGroup = device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(0),
+    entries: [
+      { binding: 0, resource: { buffer: lineBuffer } },
+      { binding: 1, resource: { buffer: edgeBuffer } },
+      { binding: 2, resource: { buffer: clippedLinesBuffer } },
+      { binding: 3, resource: { buffer: debugBuffer } },
+    ],
+  });
 
-    // Wait for GPU to finish processing and map the result buffer
-    await device.queue.onSubmittedWorkDone();
+  // Dispatch
+  const commandEncoder = device.createCommandEncoder();
+  const passEncoder = commandEncoder.beginComputePass();
+  passEncoder.setPipeline(pipeline);
+  passEncoder.setBindGroup(0, bindGroup);
+  passEncoder.dispatchWorkgroups(lines.length);
+  passEncoder.end();
+  commandEncoder.copyBufferToBuffer(
+    clippedLinesBuffer,
+    0,
+    readClippedLinesBuffer,
+    0,
+    clippedLinesBuffer.size
+  );
+  commandEncoder.copyBufferToBuffer(
+    debugBuffer,
+    0,
+    readDebugBuffer,
+    0,
+    debugBuffer.size
+  );
+  device.queue.submit([commandEncoder.finish()]);
 
-    await readBuffer.mapAsync(GPUMapMode.READ);
-    const data = new Float32Array(readBuffer.getMappedRange());
-    const clippedLines = [];
-    for (let i = 0; i < data.length; i += 4) {
-        clippedLines.push([
-            { X: data[i], Y: data[i + 1] },
-            { X: data[i + 2], Y: data[i + 3] },
-        ]);
+  // Read buffers
+  await readClippedLinesBuffer.mapAsync(GPUMapMode.READ);
+  const clippedLinesData = new Float32Array(
+    readClippedLinesBuffer.getMappedRange()
+  );
+  const clippedLines = [];
+  for (let i = 0; i < clippedLinesData.length; i += 4) {
+    clippedLines.push([
+      { X: clippedLinesData[i], Y: clippedLinesData[i + 1] },
+      { X: clippedLinesData[i + 2], Y: clippedLinesData[i + 3] },
+    ]);
+  }
+  readClippedLinesBuffer.unmap();
+
+  await readDebugBuffer.mapAsync(GPUMapMode.READ);
+  const debugData = new Float32Array(readDebugBuffer.getMappedRange());
+  console.log("Debug Data:", debugData);
+  readDebugBuffer.unmap();
+
+  return clippedLines.filter(
+    (line) => !line.every((pt) => pt.X === 0 && pt.Y === 0)
+  );
+}
+
+function convertPolygonToEdges(polygon) {
+  const edges = [];
+  for (const ring of polygon) {
+    for (let i = 0; i < ring.length; i++) {
+      const start = ring[i];
+      const end = ring[(i + 1) % ring.length]; // Wrap to form a closed loop
+      edges.push(start.X, start.Y, end.X, end.Y);
     }
-    readBuffer.unmap();
-
-    return clippedLines;
+  }
+  return edges;
 }
