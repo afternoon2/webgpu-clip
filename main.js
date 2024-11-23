@@ -1,5 +1,5 @@
 import "./style.css";
-import { clipLinesWithCompute } from "./src/clip.compute.js";
+import { GPULineClipper } from "./src/GPULineClipper.js";
 
 const CANVAS_WIDTH = 1000;
 const CANVAS_HEIGHT = 1000;
@@ -599,7 +599,9 @@ const lines = [
   ],
 ];
 
-const result = await clipLinesWithCompute(lines, polygon);
+const clipper = new GPULineClipper();
+
+const result = await clipper.clipLines(lines, polygon);
 
 const canvas = document.querySelector("canvas");
 
