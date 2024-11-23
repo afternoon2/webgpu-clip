@@ -75,7 +75,11 @@ export class GPULineClipper {
     lineBuffer.unmap();
 
     const clippedLinesBuffer = this.#device.createBuffer({
-      size: lines.length * 16 * 4 * Float32Array.BYTES_PER_ELEMENT, // Max 16 segments per line, 4 floats per segment
+      size:
+        lines.length *
+        this.maxIntersectionsPerLine *
+        4 *
+        Float32Array.BYTES_PER_ELEMENT, // Max 16 segments per line, 4 floats per segment
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
     });
 
@@ -85,8 +89,7 @@ export class GPULineClipper {
     });
 
     const intersectionSize = 3 * Float32Array.BYTES_PER_ELEMENT; // Size of one Intersection
-    const maxIntersectionsPerLine = 16; // Adjust as needed
-    const totalIntersections = lines.length * maxIntersectionsPerLine;
+    const totalIntersections = lines.length * this.maxIntersectionsPerLine;
 
     const intersectionsBuffer = this.#device.createBuffer({
       size: totalIntersections * intersectionSize,
