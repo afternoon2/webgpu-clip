@@ -13,29 +13,34 @@ struct Edge {
   end: Point,
 };
 
+struct Intersection {
+  point: Point,
+  isValid: bool,
+};
+
 @group(0) @binding(0) var<storage, read> lines: array<Line>;
 @group(0) @binding(1) var<storage, read> edges: array<Edge>;
 @group(0) @binding(2) var<storage, read_write> clippedLines: array<Line>;
 @group(0) @binding(3) var<storage, read_write> debugBuffer: array<Point>;
 
-fn lineIntersection(p1: Point, p2: Point, p3: Point, p4: Point) -> Point {
+fn lineIntersection(p1: Point, p2: Point, p3: Point, p4: Point) -> Intersection {
   let s1 = vec2<f32>(p2.X - p1.X, p2.Y - p1.Y);
   let s2 = vec2<f32>(p4.X - p3.X, p4.Y - p3.Y);
 
   let denom = -s2.x * s1.y + s1.x * s2.y;
 
   if (abs(denom) < 1e-6) {
-    return Point(-1.0, -1.0); // No intersection
+    return Intersection(Point(0.0, 0.0), false); // No intersection
   }
 
   let s = (-s1.y * (p1.X - p3.X) + s1.x * (p1.Y - p3.Y)) / denom;
   let t = (s2.x * (p1.Y - p3.Y) - s2.y * (p1.X - p3.X)) / denom;
 
   if (s >= 0.0 && s <= 1.0 && t >= 0.0 && t <= 1.0) {
-    return Point(p1.X + t * s1.x, p1.Y + t * s1.y);
+    return Intersection(Point(p1.X + t * s1.x, p1.Y + t * s1.y), true);
   }
 
-  return Point(-1.0, -1.0); // No intersection
+  return Intersection(Point(0.0, 0.0), false); // No intersection
 }
 
 @compute @workgroup_size(1)
@@ -45,20 +50,20 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     return;
   }
 
-  var intersections: array<Point, 128>;
+  var intersections: array<Point, 16>;
   var count = 0u;
   let debugStartIndex = lineIndex * 16u;
 
   for (var i = 0u; i < arrayLength(&edges); i = i + 1u) {
     let edge = edges[i];
-    let intersection = lineIntersection(lines[lineIndex].start, lines[lineIndex].end, edge.start, edge.end);
+    let result = lineIntersection(lines[lineIndex].start, lines[lineIndex].end, edge.start, edge.end);
 
-    if (intersection.X != -1.0 || intersection.Y != -1.0) {
-      if (count < 128u) {
-        intersections[count] = intersection;
+    if (result.isValid) {
+      if (count < 16u) {
+        intersections[count] = result.point;
 
         if (debugStartIndex + count < arrayLength(&debugBuffer)) {
-          debugBuffer[debugStartIndex + count] = intersection;
+          debugBuffer[debugStartIndex + count] = result.point;
         }
 
         count = count + 1u;
