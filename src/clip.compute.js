@@ -43,7 +43,10 @@ export async function clipLinesWithCompute(lines, polygon) {
 
   const intersectionsBuffer = device.createBuffer({
     size: totalIntersections * intersectionSize,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+    usage:
+      GPUBufferUsage.STORAGE |
+      GPUBufferUsage.COPY_SRC |
+      GPUBufferUsage.COPY_DST,
   });
 
   const debugBuffer = device.createBuffer({
