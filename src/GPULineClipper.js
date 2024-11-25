@@ -1,4 +1,4 @@
-import shader from "./lineClip.wgsl?raw";
+import shader from './lineClip.wgsl?raw';
 
 export class GPULineClipper {
   #device = null;
@@ -14,19 +14,19 @@ export class GPULineClipper {
 
   async #initializeGPU() {
     if (!navigator.gpu) {
-      throw new Error("WebGPU is not supported on this browser.");
+      throw new Error('WebGPU is not supported on this browser.');
     }
 
     this.#adapter = await navigator.gpu.requestAdapter();
     if (!this.#adapter) {
-      throw new Error("Failed to get GPU adapter.");
+      throw new Error('Failed to get GPU adapter.');
     }
 
     this.#device = await this.#adapter.requestDevice();
 
-    this.#lineShaderModule = this.#device.createShaderModule({ code: shader });
-
-    
+    this.#lineShaderModule = this.#device.createShaderModule({
+      code: shader,
+    });
   }
 
   static #convertPolygonToEdges(polygon) {
@@ -57,22 +57,22 @@ export class GPULineClipper {
     await this.#ready; // Wait for GPU initialization to complete
 
     this.#pipeline = this.#device.createComputePipeline({
-      layout: "auto",
+      layout: 'auto',
       compute: {
         module: this.#lineShaderModule,
-        entryPoint: "main",
+        entryPoint: 'main',
       },
     });
 
     // Buffers
     // Create buffers
     const edgeData = new Float32Array(
-      GPULineClipper.#convertPolygonToEdges(polygon)
+      GPULineClipper.#convertPolygonToEdges(polygon),
     );
     const edgeBuffer = this.#createEdgeBuffer(edgeData);
 
     const lineData = new Float32Array(
-      lines.flatMap((line) => [line[0].X, line[0].Y, line[1].X, line[1].Y])
+      lines.flatMap((line) => [line[0].X, line[0].Y, line[1].X, line[1].Y]),
     );
     const lineBuffer = this.#device.createBuffer({
       size: lineData.byteLength,
@@ -136,14 +136,14 @@ export class GPULineClipper {
       0,
       readClippedLinesBuffer,
       0,
-      clippedLinesBuffer.size
+      clippedLinesBuffer.size,
     );
     this.#device.queue.submit([commandEncoder.finish()]);
 
     // Read buffers
     await readClippedLinesBuffer.mapAsync(GPUMapMode.READ);
     const clippedLinesData = new Float32Array(
-      readClippedLinesBuffer.getMappedRange()
+      readClippedLinesBuffer.getMappedRange(),
     );
     const clippedLines = [];
     for (let i = 0; i < clippedLinesData.length; i += 4) {
@@ -155,7 +155,7 @@ export class GPULineClipper {
     readClippedLinesBuffer.unmap();
 
     return clippedLines.filter(
-      (line) => !line.every((pt) => pt.X === 0 && pt.Y === 0)
+      (line) => !line.every((pt) => pt.X === 0 && pt.Y === 0),
     );
   }
 }

@@ -6,9 +6,16 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint . --c src/**/*.js",
+    "format": "prettier --write ."
   },
   "devDependencies": {
-    "vite": "^5.4.10"
+    "eslint": "^9.15.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "prettier": "^3.3.3",
+    "vite": "^5.4.10",
+    "vite-plugin-eslint": "^1.8.1"
   }
 }

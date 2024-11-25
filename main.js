@@ -1,5 +1,5 @@
-import "./style.css";
-import { GPULineClipper } from "./src/GPULineClipper.js";
+import './style.css';
+import { GPULineClipper } from './src/GPULineClipper.js';
 
 const CANVAS_WIDTH = 1000;
 const CANVAS_HEIGHT = 1000;
@@ -603,15 +603,15 @@ const clipper = new GPULineClipper();
 
 const result = await clipper.clipLines(lines, polygon);
 
-const canvas = document.querySelector("canvas");
+const canvas = document.querySelector('canvas');
 
 canvas.width = CANVAS_WIDTH;
 canvas.height = CANVAS_HEIGHT;
 
-const ctx = canvas.getContext("2d");
-ctx.fillStyle = "black";
+const ctx = canvas.getContext('2d');
+ctx.fillStyle = 'black';
 
-ctx.strokeStyle = "white";
+ctx.strokeStyle = 'white';
 
 polygon.forEach((ring) => {
   ctx.beginPath();
@@ -626,7 +626,7 @@ polygon.forEach((ring) => {
   ctx.stroke();
 });
 
-ctx.strokeStyle = "red";
+ctx.strokeStyle = 'red';
 
 lines.forEach((line) => {
   ctx.beginPath();
@@ -636,7 +636,7 @@ lines.forEach((line) => {
   ctx.stroke();
 });
 
-ctx.strokeStyle = "yellow";
+ctx.strokeStyle = 'yellow';
 
 result.forEach((line) => {
   ctx.beginPath();
