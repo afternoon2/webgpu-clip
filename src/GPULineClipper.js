@@ -41,13 +41,13 @@ export class GPULineClipper {
     return edges;
   }
 
-  #createEdgeBuffer(edgeData) {
+  #createMappedStorageCopyDataBuffer(data) {
     const buffer = this.#device.createBuffer({
-      size: edgeData.byteLength,
+      size: data.byteLength,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
       mappedAtCreation: true,
     });
-    new Float32Array(buffer.getMappedRange()).set(edgeData);
+    new Float32Array(buffer.getMappedRange()).set(data);
     buffer.unmap();
 
     return buffer;
@@ -69,18 +69,12 @@ export class GPULineClipper {
     const edgeData = new Float32Array(
       GPULineClipper.#convertPolygonToEdges(polygon),
     );
-    const edgeBuffer = this.#createEdgeBuffer(edgeData);
+    const edgeBuffer = this.#createMappedStorageCopyDataBuffer(edgeData);
 
     const lineData = new Float32Array(
       lines.flatMap((line) => [line[0].X, line[0].Y, line[1].X, line[1].Y]),
     );
-    const lineBuffer = this.#device.createBuffer({
-      size: lineData.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-      mappedAtCreation: true,
-    });
-    new Float32Array(lineBuffer.getMappedRange()).set(lineData);
-    lineBuffer.unmap();
+    const lineBuffer = this.#createMappedStorageCopyDataBuffer(lineData);
 
     const clippedLinesBuffer = this.#device.createBuffer({
       size:
