@@ -5,6 +5,7 @@ export class GPULineClipper {
   #adapter = null;
   #pipeline = null;
   #ready = null;
+  #lineShaderModule = null;
 
   constructor(maxIntersectionsPerLine = 128) {
     this.maxIntersectionsPerLine = maxIntersectionsPerLine;
@@ -23,15 +24,9 @@ export class GPULineClipper {
 
     this.#device = await this.#adapter.requestDevice();
 
-    const shaderModule = this.#device.createShaderModule({ code: shader });
+    this.#lineShaderModule = this.#device.createShaderModule({ code: shader });
 
-    this.#pipeline = this.#device.createComputePipeline({
-      layout: "auto",
-      compute: {
-        module: shaderModule,
-        entryPoint: "main",
-      },
-    });
+    
   }
 
   static #convertPolygonToEdges(polygon) {
@@ -46,26 +41,39 @@ export class GPULineClipper {
     return edges;
   }
 
-  async clipLines(lines, polygon) {
-    await this.#ready; // Wait for GPU initialization to complete
-
-    const edgeData = new Float32Array(
-      GPULineClipper.#convertPolygonToEdges(polygon)
-    );
-    const lineData = new Float32Array(
-      lines.flatMap((line) => [line[0].X, line[0].Y, line[1].X, line[1].Y])
-    );
-
-    // Buffers
-    // Create buffers
-    const edgeBuffer = this.#device.createBuffer({
+  #createEdgeBuffer(edgeData) {
+    const buffer = this.#device.createBuffer({
       size: edgeData.byteLength,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
       mappedAtCreation: true,
     });
-    new Float32Array(edgeBuffer.getMappedRange()).set(edgeData);
-    edgeBuffer.unmap();
+    new Float32Array(buffer.getMappedRange()).set(edgeData);
+    buffer.unmap();
 
+    return buffer;
+  }
+
+  async clipLines(lines, polygon) {
+    await this.#ready; // Wait for GPU initialization to complete
+
+    this.#pipeline = this.#device.createComputePipeline({
+      layout: "auto",
+      compute: {
+        module: this.#lineShaderModule,
+        entryPoint: "main",
+      },
+    });
+
+    // Buffers
+    // Create buffers
+    const edgeData = new Float32Array(
+      GPULineClipper.#convertPolygonToEdges(polygon)
+    );
+    const edgeBuffer = this.#createEdgeBuffer(edgeData);
+
+    const lineData = new Float32Array(
+      lines.flatMap((line) => [line[0].X, line[0].Y, line[1].X, line[1].Y])
+    );
     const lineBuffer = this.#device.createBuffer({
       size: lineData.byteLength,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
@@ -105,11 +113,6 @@ export class GPULineClipper {
     };
 
     clearBuffer();
-
-    // Compute pipeline
-    const shaderModule = this.#device.createShaderModule({
-      code: shader,
-    });
 
     const bindGroup = this.#device.createBindGroup({
       layout: this.#pipeline.getBindGroupLayout(0),
