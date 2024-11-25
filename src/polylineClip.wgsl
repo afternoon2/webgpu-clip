@@ -13,15 +13,9 @@ struct Edge {
     end: Point,
 };
 
-struct Metadata {
-    start: u32,
-    end: u32
-}
-
 @group(0) @binding(0) var<storage, read> polylineVertices: array<Point>;
-@group(0) @binding(1) var<storage, read> polylineMetadata: array<Metadata>;
-@group(0) @binding(2) var<storage, read> edges: array<Edge>;
-@group(0) @binding(3) var<storage, read_write> clippedVertices: array<Point>;
+@group(0) @binding(1) var<storage, read> edges: array<Edge>;
+@group(0) @binding(2) var<storage, read_write> clippedVertices: array<Point>;
 
 fn lineIntersection(p1: Point, p2: Point, p3: Point, p4: Point) -> Intersection {
     let s1 = vec2<f32>(p2.X - p1.X, p2.Y - p1.Y);
@@ -47,18 +41,22 @@ fn lineIntersection(p1: Point, p2: Point, p3: Point, p4: Point) -> Intersection 
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     let polylineIndex = id.x;
 
-    if (polylineIndex >= arrayLength(&polylineMetadata)) {
+    if (polylineIndex >= arrayLength(&polylineVertices)) {
         return;
     }
 
-    let metadata = polylineMetadata[polylineIndex];
-    var offset: u32 = metadata.start;
-    
+    var outputIndex: u32 = 0u;
 
-    for (var i = metadata.start; i < metadata.end; i = i + 1u) {
+    // Iterate through vertices and process segments
+    for (var i = 0u; i < arrayLength(&polylineVertices); i = i + 1u) {
         let vertex = polylineVertices[i];
-        clippedVertices[offset] = vertex;
-        offset = offset + 1u;
+
+        // Process vertex (you can implement clipping or other logic here)
+        let clippedPoint = Point(vertex.X, vertex.Y);
+
+        // Write to output buffer
+        clippedVertices[outputIndex] = clippedPoint;
+        outputIndex = outputIndex + 1u;
     }
 
     // clippedVertices[polylineIndex] = polylineVertices[metadata.end + 1u];

@@ -624,7 +624,9 @@ const polylines = [
   ],
 ];
 
-await clipper.clipPolylines(polylines, polygon);
+const result = await clipper.clipPolylines(polylines, polygon);
+
+console.log(result);
 // const result = await clipper.clipLines(lines, polygon);
 
 // const canvas = document.querySelector('canvas');
