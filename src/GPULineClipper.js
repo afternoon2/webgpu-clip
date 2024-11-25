@@ -1,4 +1,5 @@
 import shader from './lineClip.wgsl?raw';
+import polylineShader from './polylineClip.wgsl?raw';
 
 export class GPULineClipper {
   #device = null;
@@ -6,6 +7,7 @@ export class GPULineClipper {
   #pipeline = null;
   #ready = null;
   #lineShaderModule = null;
+  #polylineShaderModule = null;
 
   constructor(maxIntersectionsPerLine = 128) {
     this.maxIntersectionsPerLine = maxIntersectionsPerLine;
@@ -26,6 +28,9 @@ export class GPULineClipper {
 
     this.#lineShaderModule = this.#device.createShaderModule({
       code: shader,
+    });
+    this.#polylineShaderModule = this.#device.createShaderModule({
+      code: polylineShader,
     });
   }
 
@@ -51,6 +56,137 @@ export class GPULineClipper {
     buffer.unmap();
 
     return buffer;
+  }
+
+  async clipPolylines(polylines, polygon) {
+    await this.#ready;
+
+    const edgeData = new Float32Array(
+      GPULineClipper.#convertPolygonToEdges(polygon),
+    );
+    const edgeBuffer = this.#createMappedStorageCopyDataBuffer(edgeData);
+
+    const { vertices, metadata } = polylines.reduce(
+      (obj, polyline, index) => {
+        if (index === 0) {
+          obj.metadata.push([index, polyline.length]); // Use `polyline.length` as exclusive
+          obj.vertices.push(...polyline);
+        } else {
+          const prevMetadata = obj.metadata[index - 1];
+          obj.metadata.push([
+            prevMetadata[1],
+            prevMetadata[1] + polyline.length, // Exclusive end
+          ]);
+        }
+        obj.vertices.push(...polyline);
+        return obj;
+      },
+      { vertices: [], metadata: [] },
+    );
+
+    console.log('Metadata:', metadata);
+    console.log('Vertices:', vertices);
+
+    const polylineVerticesBuffer = this.#createMappedStorageCopyDataBuffer(
+      new Float32Array(vertices.flatMap((pt) => [pt.X, pt.Y])),
+    );
+    const metadataArray = new Uint32Array(metadata.flat());
+
+    const polylineMetadataBuffer = this.#device.createBuffer({
+      label: 'polylineMetadataBuffer',
+      size: metadataArray.byteLength,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    });
+    this.#device.queue.writeBuffer(polylineMetadataBuffer, 0, metadataArray);
+
+    const maxVerticesPerPolyline = Math.max(...polylines.map((p) => p.length));
+    const clippedVerticesBuffer = this.#device.createBuffer({
+      size:
+        maxVerticesPerPolyline *
+        2 *
+        Float32Array.BYTES_PER_ELEMENT *
+        polylines.length,
+      label: 'clippedVerticesBuffer',
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+    });
+
+    const readClippedVerticesBuffer = this.#device.createBuffer({
+      size: clippedVerticesBuffer.size,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+      label: 'readClippedVerticesBuffer',
+    });
+
+    const bindGroupLayout = this.#device.createBindGroupLayout({
+      entries: [
+        {
+          binding: 0,
+          visibility: GPUShaderStage.COMPUTE,
+          buffer: { type: 'read-only-storage' },
+        },
+        {
+          binding: 1,
+          visibility: GPUShaderStage.COMPUTE,
+          buffer: { type: 'read-only-storage' },
+        },
+        {
+          binding: 2,
+          visibility: GPUShaderStage.COMPUTE,
+          buffer: { type: 'read-only-storage' },
+        },
+        {
+          binding: 3,
+          visibility: GPUShaderStage.COMPUTE,
+          buffer: { type: 'storage' },
+        },
+      ],
+    });
+
+    this.#pipeline = this.#device.createComputePipeline({
+      layout: this.#device.createPipelineLayout({
+        bindGroupLayouts: [bindGroupLayout],
+      }),
+
+      compute: {
+        module: this.#polylineShaderModule,
+        entryPoint: 'main',
+      },
+    });
+
+    const bindGroup = this.#device.createBindGroup({
+      layout: this.#pipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer: polylineVerticesBuffer } },
+        { binding: 1, resource: { buffer: polylineMetadataBuffer } },
+        { binding: 2, resource: { buffer: edgeBuffer } },
+        { binding: 3, resource: { buffer: clippedVerticesBuffer } },
+      ],
+    });
+
+    console.log(`Dispatching ${polylines.length} workgroups`);
+
+    // Dispatch
+    const commandEncoder = this.#device.createCommandEncoder();
+    const passEncoder = commandEncoder.beginComputePass();
+    passEncoder.setPipeline(this.#pipeline);
+    passEncoder.setBindGroup(0, bindGroup);
+    passEncoder.dispatchWorkgroups(polylines.length);
+    passEncoder.end();
+    commandEncoder.copyBufferToBuffer(
+      clippedVerticesBuffer,
+      0,
+      readClippedVerticesBuffer,
+      0,
+      clippedVerticesBuffer.size,
+    );
+    this.#device.queue.submit([commandEncoder.finish()]);
+
+    // Read buffers
+    await readClippedVerticesBuffer.mapAsync(GPUMapMode.READ);
+    const clippedVerticesData = new Float32Array(
+      readClippedVerticesBuffer.getMappedRange(),
+    );
+    console.table(clippedVerticesData);
+    readClippedVerticesBuffer.unmap();
   }
 
   async clipLines(lines, polygon) {

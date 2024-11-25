@@ -601,49 +601,73 @@ const lines = [
 
 const clipper = new GPULineClipper();
 
-const result = await clipper.clipLines(lines, polygon);
+const polylines = [
+  [
+    { X: 10, Y: 200 },
+    { X: 1500, Y: 200 },
+    { X: 1000, Y: 210 },
+    { X: 10, Y: 210 },
+    { X: 1000, Y: 220 },
+    { X: 10, Y: 220 },
+    { X: 1000, Y: 240 },
+    { X: 10, Y: 240 },
+  ],
+  [
+    { X: 10, Y: 300 },
+    { X: 1500, Y: 300 },
+    { X: 1000, Y: 310 },
+    { X: 10, Y: 310 },
+    { X: 1000, Y: 320 },
+    { X: 10, Y: 320 },
+    { X: 1000, Y: 340 },
+    { X: 10, Y: 340 },
+  ],
+];
 
-const canvas = document.querySelector('canvas');
+await clipper.clipPolylines(polylines, polygon);
+// const result = await clipper.clipLines(lines, polygon);
 
-canvas.width = CANVAS_WIDTH;
-canvas.height = CANVAS_HEIGHT;
+// const canvas = document.querySelector('canvas');
 
-const ctx = canvas.getContext('2d');
-ctx.fillStyle = 'black';
+// canvas.width = CANVAS_WIDTH;
+// canvas.height = CANVAS_HEIGHT;
 
-ctx.strokeStyle = 'white';
+// const ctx = canvas.getContext('2d');
+// ctx.fillStyle = 'black';
 
-polygon.forEach((ring) => {
-  ctx.beginPath();
-  ring.forEach((pt, i) => {
-    if (i === 0) {
-      ctx.moveTo(pt.X, pt.Y);
-    } else {
-      ctx.lineTo(pt.X, pt.Y);
-    }
-  });
-  ctx.closePath();
-  ctx.stroke();
-});
+// ctx.strokeStyle = 'white';
 
-ctx.strokeStyle = 'red';
+// polygon.forEach((ring) => {
+//   ctx.beginPath();
+//   ring.forEach((pt, i) => {
+//     if (i === 0) {
+//       ctx.moveTo(pt.X, pt.Y);
+//     } else {
+//       ctx.lineTo(pt.X, pt.Y);
+//     }
+//   });
+//   ctx.closePath();
+//   ctx.stroke();
+// });
 
-lines.forEach((line) => {
-  ctx.beginPath();
-  ctx.moveTo(line[0].X, line[0].Y);
-  ctx.lineTo(line[1].X, line[1].Y);
-  ctx.closePath();
-  ctx.stroke();
-});
+// ctx.strokeStyle = 'red';
 
-ctx.strokeStyle = 'yellow';
+// lines.forEach((line) => {
+//   ctx.beginPath();
+//   ctx.moveTo(line[0].X, line[0].Y);
+//   ctx.lineTo(line[1].X, line[1].Y);
+//   ctx.closePath();
+//   ctx.stroke();
+// });
 
-result.forEach((line) => {
-  ctx.beginPath();
-  ctx.moveTo(line[0].X, line[0].Y);
-  ctx.lineTo(line[1].X, line[1].Y);
-  ctx.closePath();
-  ctx.stroke();
-});
+// ctx.strokeStyle = 'yellow';
 
-console.log(result);
+// result.forEach((line) => {
+//   ctx.beginPath();
+//   ctx.moveTo(line[0].X, line[0].Y);
+//   ctx.lineTo(line[1].X, line[1].Y);
+//   ctx.closePath();
+//   ctx.stroke();
+// });
+
+// console.log(result);
