@@ -79,6 +79,28 @@ export class GPULineClipper {
         : flatPolyline; // No sentinel after the last polyline
     });
 
+    const metadata = polylines
+      .reduce((result, polyline, i) => {
+        if (i === 0) {
+          result.push([0, polyline.length - 1]);
+        } else {
+          const previous = result[result.length - 1];
+          result.push([previous[0] + previous[1] + 2, polyline.length - 1]);
+        }
+        return result;
+      }, [])
+      .flat();
+
+    console.log('Metadata', metadata);
+
+    const metadataBuffer = this.#device.createBuffer({
+      size: metadata.length * Uint32Array.BYTES_PER_ELEMENT,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+      mappedAtCreation: true,
+    });
+    new Uint32Array(metadataBuffer.getMappedRange()).set(metadata);
+    metadataBuffer.unmap();
+
     const polylineVerticesBuffer = this.#device.createBuffer({
       size: vertices.length * Float32Array.BYTES_PER_ELEMENT,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
@@ -121,6 +143,11 @@ export class GPULineClipper {
           visibility: GPUShaderStage.COMPUTE,
           buffer: { type: 'storage' },
         },
+        {
+          binding: 3,
+          visibility: GPUShaderStage.COMPUTE,
+          buffer: { type: 'storage' },
+        },
       ],
     });
 
@@ -141,6 +168,7 @@ export class GPULineClipper {
         { binding: 0, resource: { buffer: polylineVerticesBuffer } },
         { binding: 1, resource: { buffer: edgeBuffer } },
         { binding: 2, resource: { buffer: clippedVerticesBuffer } },
+        { binding: 3, resource: { buffer: metadataBuffer } },
       ],
     });
 
@@ -151,7 +179,7 @@ export class GPULineClipper {
     const passEncoder = commandEncoder.beginComputePass();
     passEncoder.setPipeline(this.#pipeline);
     passEncoder.setBindGroup(0, bindGroup);
-    passEncoder.dispatchWorkgroups(polylines.length);
+    passEncoder.dispatchWorkgroups(1);
     passEncoder.end();
     commandEncoder.copyBufferToBuffer(
       clippedVerticesBuffer,

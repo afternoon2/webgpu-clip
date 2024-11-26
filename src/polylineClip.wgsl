@@ -13,9 +13,15 @@ struct Edge {
     end: Point,
 };
 
+struct Metadata {
+    index: u32,
+    count: u32,
+}
+
 @group(0) @binding(0) var<storage, read> polylineVertices: array<Point>;
 @group(0) @binding(1) var<storage, read> edges: array<Edge>;
 @group(0) @binding(2) var<storage, read_write> clippedVertices: array<Point>;
+@group(0) @binding(3) var<storage, read_write> metadataBuffer: array<Metadata>;
 
 fn lineIntersection(p1: Point, p2: Point, p3: Point, p4: Point) -> Intersection {
     let s1 = vec2<f32>(p2.X - p1.X, p2.Y - p1.Y);
@@ -37,27 +43,28 @@ fn lineIntersection(p1: Point, p2: Point, p3: Point, p4: Point) -> Intersection 
     return Intersection(Point(-1.0, -1.0), 0); // No intersection
 }
 
+fn isSentinelValue(point: Point) -> bool {
+    return point.X == -1.0 && point.Y == -1.0;
+}
+
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     let polylineIndex = id.x;
 
-    if (polylineIndex >= arrayLength(&polylineVertices)) {
+    if (polylineIndex >= arrayLength(&metadataBuffer)) {
         return;
     }
 
-    var outputIndex: u32 = 0u;
+    // var outputIndex: u32 = 0u;
 
-    // Iterate through vertices and process segments
-    for (var i = 0u; i < arrayLength(&polylineVertices); i = i + 1u) {
+    let metadata = metadataBuffer[polylineIndex];
+
+    for (var i = metadata.index; i <= metadata.index + metadata.count; i = i + 1u) {
         let vertex = polylineVertices[i];
-
         // Process vertex (you can implement clipping or other logic here)
         let clippedPoint = Point(vertex.X, vertex.Y);
 
         // Write to output buffer
-        clippedVertices[outputIndex] = clippedPoint;
-        outputIndex = outputIndex + 1u;
+        clippedVertices[i] = clippedPoint;
     }
-
-    // clippedVertices[polylineIndex] = polylineVertices[metadata.end + 1u];
 }
