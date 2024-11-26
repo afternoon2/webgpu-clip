@@ -14,9 +14,9 @@ struct Edge {
 };
 
 struct Metadata {
-    index: u32,
-    count: u32,
-}
+    start: u32,
+    end: u32,
+};
 
 @group(0) @binding(0) var<storage, read> polylineVertices: array<Point>;
 @group(0) @binding(1) var<storage, read> edges: array<Edge>;
@@ -47,19 +47,25 @@ fn isSentinelValue(point: Point) -> bool {
     return point.X == -1.0 && point.Y == -1.0;
 }
 
-@compute @workgroup_size(64)
+@compute @workgroup_size(1)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     let polylineIndex = id.x;
 
+    // Bounds check: ensure the thread doesn't process out-of-bounds metadata
     if (polylineIndex >= arrayLength(&metadataBuffer)) {
         return;
     }
 
+
     // var outputIndex: u32 = 0u;
 
-    let metadata = metadataBuffer[polylineIndex];
+    // Get metadata for this polyline
+    let polylineMetadata = metadataBuffer[polylineIndex];
+    let start = polylineMetadata.start;
+    let end = polylineMetadata.end;
 
-    for (var i = metadata.index; i <= metadata.index + metadata.count; i = i + 1u) {
+
+    for (var i = start; i < end; i = i + 1u) {
         let vertex = polylineVertices[i];
         // Process vertex (you can implement clipping or other logic here)
         let clippedPoint = Point(vertex.X, vertex.Y);

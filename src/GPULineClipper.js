@@ -68,45 +68,42 @@ export class GPULineClipper {
     );
     const edgeBuffer = this.#createMappedStorageCopyDataBuffer(edgeData);
 
-    const vertices = polylines.flatMap((polyline, index) => {
-      const flatPolyline = polyline.flatMap(({ X, Y }) => [X, Y]);
-      return index < polylines.length - 1
-        ? [
-            ...flatPolyline,
-            GPULineClipper.#SENTINEL.X,
-            GPULineClipper.#SENTINEL.Y,
-          ]
-        : flatPolyline; // No sentinel after the last polyline
-    });
-
-    const metadata = polylines
-      .reduce((result, polyline, i) => {
-        if (i === 0) {
-          result.push([0, polyline.length - 1]);
-        } else {
-          const previous = result[result.length - 1];
-          result.push([previous[0] + previous[1] + 2, polyline.length - 1]);
-        }
+    const { vertices, metadata } = polylines.reduce(
+      (result, polyline) => {
+        const start = result.vertices.length; // Start index
+        const end = start + polyline.length; // Exclusive end index
+        result.metadata.push({ start, end });
+        result.vertices.push(...polyline); // Flatten vertices
         return result;
-      }, [])
-      .flat();
+      },
+      { vertices: [], metadata: [] },
+    );
 
-    console.log('Metadata', metadata);
+    console.log(metadata);
+
+    const verticesArray = new Float32Array(
+      vertices.flatMap(({ X, Y }) => [X, Y]),
+    );
+    const metadataArray = new Uint32Array(
+      metadata.flatMap(({ start, end }) => [start, end]),
+    );
 
     const metadataBuffer = this.#device.createBuffer({
-      size: metadata.length * Uint32Array.BYTES_PER_ELEMENT,
+      size: metadataArray.byteLength,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
       mappedAtCreation: true,
     });
-    new Uint32Array(metadataBuffer.getMappedRange()).set(metadata);
+    new Uint32Array(metadataBuffer.getMappedRange()).set(metadataArray);
     metadataBuffer.unmap();
 
     const polylineVerticesBuffer = this.#device.createBuffer({
-      size: vertices.length * Float32Array.BYTES_PER_ELEMENT,
+      size: verticesArray.byteLength,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
       mappedAtCreation: true,
     });
-    new Float32Array(polylineVerticesBuffer.getMappedRange()).set(vertices);
+    new Float32Array(polylineVerticesBuffer.getMappedRange()).set(
+      verticesArray,
+    );
     polylineVerticesBuffer.unmap();
 
     const maxVerticesPerPolyline = Math.max(...polylines.map((p) => p.length));
@@ -179,7 +176,7 @@ export class GPULineClipper {
     const passEncoder = commandEncoder.beginComputePass();
     passEncoder.setPipeline(this.#pipeline);
     passEncoder.setBindGroup(0, bindGroup);
-    passEncoder.dispatchWorkgroups(1);
+    passEncoder.dispatchWorkgroups(polylines.length);
     passEncoder.end();
     commandEncoder.copyBufferToBuffer(
       clippedVerticesBuffer,
