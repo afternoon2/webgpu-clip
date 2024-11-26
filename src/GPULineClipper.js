@@ -123,6 +123,19 @@ export class GPULineClipper {
       label: 'readClippedVerticesBuffer',
     });
 
+    const maxLineSegments = polylines.length * 512;
+    const lineSegmentsBuffer = this.#device.createBuffer({
+      size: maxLineSegments * 4 * Float32Array.BYTES_PER_ELEMENT,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+      label: 'lineSegmentsBuffer',
+    });
+
+    const readLineSegmentsBuffer = this.#device.createBuffer({
+      size: lineSegmentsBuffer.size,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+      label: 'readLineSegmentsBuffer',
+    });
+
     const bindGroupLayout = this.#device.createBindGroupLayout({
       entries: [
         {
@@ -142,6 +155,11 @@ export class GPULineClipper {
         },
         {
           binding: 3,
+          visibility: GPUShaderStage.COMPUTE,
+          buffer: { type: 'storage' },
+        },
+        {
+          binding: 4,
           visibility: GPUShaderStage.COMPUTE,
           buffer: { type: 'storage' },
         },
@@ -166,6 +184,7 @@ export class GPULineClipper {
         { binding: 1, resource: { buffer: edgeBuffer } },
         { binding: 2, resource: { buffer: clippedVerticesBuffer } },
         { binding: 3, resource: { buffer: metadataBuffer } },
+        { binding: 4, resource: { buffer: lineSegmentsBuffer } },
       ],
     });
 
@@ -185,7 +204,21 @@ export class GPULineClipper {
       0,
       clippedVerticesBuffer.size,
     );
+    commandEncoder.copyBufferToBuffer(
+      lineSegmentsBuffer,
+      0,
+      readLineSegmentsBuffer,
+      0,
+      lineSegmentsBuffer.size,
+    );
     this.#device.queue.submit([commandEncoder.finish()]);
+
+    await readLineSegmentsBuffer.mapAsync(GPUMapMode.READ);
+    const lineSegmentsData = new Float32Array(
+      readLineSegmentsBuffer.getMappedRange(),
+    );
+    console.log(lineSegmentsData);
+    lineSegmentsBuffer.unmap();
 
     // Read buffers
     await readClippedVerticesBuffer.mapAsync(GPUMapMode.READ);

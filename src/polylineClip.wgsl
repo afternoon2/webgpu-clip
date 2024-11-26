@@ -18,10 +18,16 @@ struct Metadata {
     end: u32,
 };
 
+struct LineSegment {
+    start: Point,
+    end: Point
+}
+
 @group(0) @binding(0) var<storage, read> polylineVertices: array<Point>;
 @group(0) @binding(1) var<storage, read> edges: array<Edge>;
 @group(0) @binding(2) var<storage, read_write> clippedVertices: array<Point>;
 @group(0) @binding(3) var<storage, read_write> metadataBuffer: array<Metadata>;
+@group(0) @binding(4) var<storage, read_write> lineSegmentsBuffer: array<LineSegment>;
 
 fn lineIntersection(p1: Point, p2: Point, p3: Point, p4: Point) -> Intersection {
     let s1 = vec2<f32>(p2.X - p1.X, p2.Y - p1.Y);
@@ -43,10 +49,6 @@ fn lineIntersection(p1: Point, p2: Point, p3: Point, p4: Point) -> Intersection 
     return Intersection(Point(-1.0, -1.0), 0); // No intersection
 }
 
-fn isSentinelValue(point: Point) -> bool {
-    return point.X == -1.0 && point.Y == -1.0;
-}
-
 @compute @workgroup_size(1)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     let polylineIndex = id.x;
@@ -56,21 +58,29 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
         return;
     }
 
-
-    // var outputIndex: u32 = 0u;
-
     // Get metadata for this polyline
     let polylineMetadata = metadataBuffer[polylineIndex];
     let start = polylineMetadata.start;
     let end = polylineMetadata.end;
+    
+    // Output offset: ensure unique range for this polyline's segments
+    var outputIndex: u32 = polylineIndex * 512u; // Assuming enough space in the buffer
 
+    var previousPoint: Point;
+    var hasPreviousPoint: bool = false;
 
+    // Process vertices within the specified range
     for (var i = start; i < end; i = i + 1u) {
-        let vertex = polylineVertices[i];
-        // Process vertex (you can implement clipping or other logic here)
-        let clippedPoint = Point(vertex.X, vertex.Y);
+        let currentPoint = polylineVertices[i];
 
-        // Write to output buffer
-        clippedVertices[i] = clippedPoint;
+        // Create a line segment if there's a valid previous point
+        if (hasPreviousPoint) {
+            lineSegmentsBuffer[outputIndex] = LineSegment(previousPoint, currentPoint);
+            outputIndex = outputIndex + 1u;
+        }
+
+        // Update previous point
+        previousPoint = currentPoint;
+        hasPreviousPoint = true;
     }
 }
