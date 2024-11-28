@@ -614,23 +614,15 @@ const polylines = [
     { X: 300, Y: 100 },
     { X: 400, Y: 100 },
   ],
-  // [
-  //   { X: 10, Y: 300 },
-  //   { X: 1500, Y: 300 },
-  //   { X: 1000, Y: 310 },
-  //   { X: 10, Y: 310 },
-  //   { X: 1000, Y: 320 },
-  //   { X: 10, Y: 320 },
-  //   { X: 1000, Y: 340 },
-  //   { X: 10, Y: 340 },
-  // ],
 ];
 
 // const result = await clipper.clipPolyline(polylines[0], polygon);
 
 const result = await clipper.clipLines(lines, polygon);
 
-const result2 = await clipper.clipPolyline(polylines[1], polygon);
+const result2 = await Promise.all(
+  polylines.map((polyline) => clipper.clipPolyline(polyline, polygon)),
+);
 
 console.log(result2);
 
@@ -690,18 +682,20 @@ result.forEach((line) => {
   ctx.stroke();
 });
 
-result2.forEach((polyline) => {
-  polyline.forEach((pt, i, arr) => {
-    if (i === 0) {
-      ctx.beginPath();
-      ctx.moveTo(pt.X, pt.Y);
-    } else if (i === arr.length - 1) {
-      ctx.lineTo(pt.X, pt.Y);
-      ctx.closePath();
-      ctx.stroke();
-    } else {
-      ctx.lineTo(pt.X, pt.Y);
-    }
+result2.forEach((polylines) => {
+  polylines.forEach((polyline) => {
+    polyline.forEach((pt, i, arr) => {
+      if (i === 0) {
+        ctx.beginPath();
+        ctx.moveTo(pt.X, pt.Y);
+      } else if (i === arr.length - 1) {
+        ctx.lineTo(pt.X, pt.Y);
+        ctx.closePath();
+        ctx.stroke();
+      } else {
+        ctx.lineTo(pt.X, pt.Y);
+      }
+    });
   });
 });
 
