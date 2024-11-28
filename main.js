@@ -1,8 +1,11 @@
 import './style.css';
 import { GPULineClipper } from './src/GPULineClipper.js';
+import { setup } from './src/setup.js';
 
 const CANVAS_WIDTH = 1000;
 const CANVAS_HEIGHT = 1000;
+
+const device = await setup();
 
 const polygon = [
   [
@@ -582,8 +585,8 @@ const polygon = [
 
 const lines = [
   [
-    { X: 10, Y: 200 },
-    { X: 1500, Y: 200 },
+    { X: 140, Y: 200 },
+    { X: 200, Y: 200 },
   ],
   [
     { X: 10, Y: 210 },
@@ -599,77 +602,107 @@ const lines = [
   ],
 ];
 
-const clipper = new GPULineClipper();
+const clipper = new GPULineClipper(device);
 
 const polylines = [
   [
-    { X: 10, Y: 200 },
-    { X: 1500, Y: 200 },
-    { X: 1000, Y: 210 },
-    { X: 10, Y: 210 },
-    { X: 1000, Y: 220 },
-    { X: 10, Y: 220 },
-    { X: 1000, Y: 240 },
-    { X: 10, Y: 240 },
+    { X: 40, Y: 100 },
+    { X: 200, Y: 100 },
+    { X: 300, Y: 300 },
   ],
   [
-    { X: 10, Y: 300 },
-    { X: 1500, Y: 300 },
-    { X: 1000, Y: 310 },
-    { X: 10, Y: 310 },
-    { X: 1000, Y: 320 },
-    { X: 10, Y: 320 },
-    { X: 1000, Y: 340 },
-    { X: 10, Y: 340 },
+    { X: 300, Y: 100 },
+    { X: 400, Y: 100 },
   ],
+  // [
+  //   { X: 10, Y: 300 },
+  //   { X: 1500, Y: 300 },
+  //   { X: 1000, Y: 310 },
+  //   { X: 10, Y: 310 },
+  //   { X: 1000, Y: 320 },
+  //   { X: 10, Y: 320 },
+  //   { X: 1000, Y: 340 },
+  //   { X: 10, Y: 340 },
+  // ],
 ];
 
-const result = await clipper.clipPolylines(polylines, polygon);
+// const result = await clipper.clipPolyline(polylines[0], polygon);
 
-console.log(result);
-// const result = await clipper.clipLines(lines, polygon);
+const result = await clipper.clipLines(lines, polygon);
 
-// const canvas = document.querySelector('canvas');
+const result2 = await clipper.clipPolyline(polylines[1], polygon);
 
-// canvas.width = CANVAS_WIDTH;
-// canvas.height = CANVAS_HEIGHT;
+console.log(result2);
 
-// const ctx = canvas.getContext('2d');
+const canvas = document.querySelector('canvas');
+
+canvas.width = CANVAS_WIDTH;
+canvas.height = CANVAS_HEIGHT;
+
+const ctx = canvas.getContext('2d');
 // ctx.fillStyle = 'black';
 
-// ctx.strokeStyle = 'white';
+ctx.strokeStyle = 'white';
 
-// polygon.forEach((ring) => {
-//   ctx.beginPath();
-//   ring.forEach((pt, i) => {
-//     if (i === 0) {
-//       ctx.moveTo(pt.X, pt.Y);
-//     } else {
-//       ctx.lineTo(pt.X, pt.Y);
-//     }
-//   });
-//   ctx.closePath();
-//   ctx.stroke();
-// });
+polygon.forEach((ring) => {
+  ctx.beginPath();
+  ring.forEach((pt, i) => {
+    if (i === 0) {
+      ctx.moveTo(pt.X, pt.Y);
+    } else {
+      ctx.lineTo(pt.X, pt.Y);
+    }
+  });
+  ctx.closePath();
+  ctx.stroke();
+});
 
-// ctx.strokeStyle = 'red';
+ctx.strokeStyle = 'red';
 
-// lines.forEach((line) => {
-//   ctx.beginPath();
-//   ctx.moveTo(line[0].X, line[0].Y);
-//   ctx.lineTo(line[1].X, line[1].Y);
-//   ctx.closePath();
-//   ctx.stroke();
-// });
+lines.forEach((line) => {
+  ctx.beginPath();
+  ctx.moveTo(line[0].X, line[0].Y);
+  ctx.lineTo(line[1].X, line[1].Y);
+  ctx.stroke();
+});
 
-// ctx.strokeStyle = 'yellow';
+polylines.forEach((polyline) => {
+  polyline.forEach((pt, i, arr) => {
+    if (i === 0) {
+      ctx.beginPath();
+      ctx.moveTo(pt.X, pt.Y);
+    } else if (i === arr.length - 1) {
+      ctx.lineTo(pt.X, pt.Y);
+      ctx.stroke();
+    } else {
+      ctx.lineTo(pt.X, pt.Y);
+    }
+  });
+});
 
-// result.forEach((line) => {
-//   ctx.beginPath();
-//   ctx.moveTo(line[0].X, line[0].Y);
-//   ctx.lineTo(line[1].X, line[1].Y);
-//   ctx.closePath();
-//   ctx.stroke();
-// });
+ctx.strokeStyle = 'yellow';
+
+result.forEach((line) => {
+  ctx.beginPath();
+  ctx.moveTo(line[0].X, line[0].Y);
+  ctx.lineTo(line[1].X, line[1].Y);
+  ctx.closePath();
+  ctx.stroke();
+});
+
+result2.forEach((polyline) => {
+  polyline.forEach((pt, i, arr) => {
+    if (i === 0) {
+      ctx.beginPath();
+      ctx.moveTo(pt.X, pt.Y);
+    } else if (i === arr.length - 1) {
+      ctx.lineTo(pt.X, pt.Y);
+      ctx.closePath();
+      ctx.stroke();
+    } else {
+      ctx.lineTo(pt.X, pt.Y);
+    }
+  });
+});
 
 // console.log(result);

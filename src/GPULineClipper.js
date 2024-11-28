@@ -3,29 +3,13 @@ import polylineShader from './polylineClip.wgsl?raw';
 
 export class GPULineClipper {
   #device = null;
-  #adapter = null;
   #pipeline = null;
-  #ready = null;
   #lineShaderModule = null;
   #polylineShaderModule = null;
 
-  constructor(maxIntersectionsPerLine = 128) {
+  constructor(device, maxIntersectionsPerLine = 128) {
+    this.#device = device;
     this.maxIntersectionsPerLine = maxIntersectionsPerLine;
-    this.#ready = this.#initializeGPU();
-  }
-
-  async #initializeGPU() {
-    if (!navigator.gpu) {
-      throw new Error('WebGPU is not supported on this browser.');
-    }
-
-    this.#adapter = await navigator.gpu.requestAdapter();
-    if (!this.#adapter) {
-      throw new Error('Failed to get GPU adapter.');
-    }
-
-    this.#device = await this.#adapter.requestDevice();
-
     this.#lineShaderModule = this.#device.createShaderModule({
       code: shader,
     });
@@ -58,82 +42,48 @@ export class GPULineClipper {
     return buffer;
   }
 
-  static #SENTINEL = { X: -1.0, Y: -1.0 };
-
-  async clipPolylines(polylines, polygon) {
-    await this.#ready;
+  async clipPolyline(polyline, polygon) {
+    const vertices = polyline.flatMap(({ X, Y }) => [X, Y]);
+    const verticesArray = new Float32Array(vertices);
+    const verticesBuffer = this.#device.createBuffer({
+      size: verticesArray.byteLength,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+      mappedAtCreation: true,
+    });
+    new Float32Array(verticesBuffer.getMappedRange()).set(verticesArray);
+    verticesBuffer.unmap();
 
     const edgeData = new Float32Array(
       GPULineClipper.#convertPolygonToEdges(polygon),
     );
     const edgeBuffer = this.#createMappedStorageCopyDataBuffer(edgeData);
 
-    const { vertices, metadata } = polylines.reduce(
-      (result, polyline) => {
-        const start = result.vertices.length; // Start index
-        const end = start + polyline.length; // Exclusive end index
-        result.metadata.push({ start, end });
-        result.vertices.push(...polyline); // Flatten vertices
-        return result;
-      },
-      { vertices: [], metadata: [] },
-    );
+    const maxPoints = vertices.length * edgeData.length * 3;
 
-    console.log(metadata);
-
-    const verticesArray = new Float32Array(
-      vertices.flatMap(({ X, Y }) => [X, Y]),
-    );
-    const metadataArray = new Uint32Array(
-      metadata.flatMap(({ start, end }) => [start, end]),
-    );
-
-    const metadataBuffer = this.#device.createBuffer({
-      size: metadataArray.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-      mappedAtCreation: true,
-    });
-    new Uint32Array(metadataBuffer.getMappedRange()).set(metadataArray);
-    metadataBuffer.unmap();
-
-    const polylineVerticesBuffer = this.#device.createBuffer({
-      size: verticesArray.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-      mappedAtCreation: true,
-    });
-    new Float32Array(polylineVerticesBuffer.getMappedRange()).set(
-      verticesArray,
-    );
-    polylineVerticesBuffer.unmap();
-
-    const maxVerticesPerPolyline = Math.max(...polylines.map((p) => p.length));
-    const clippedVerticesBuffer = this.#device.createBuffer({
+    const clippedPolylineBuffer = this.#device.createBuffer({
       size:
-        maxVerticesPerPolyline *
-        2 *
-        Float32Array.BYTES_PER_ELEMENT *
-        polylines.length,
-      label: 'clippedVerticesBuffer',
+        maxPoints *
+        (2 * Float32Array.BYTES_PER_ELEMENT + Uint32Array.BYTES_PER_ELEMENT),
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+      label: 'clippedFragmentsBuffer',
     });
 
-    const readClippedVerticesBuffer = this.#device.createBuffer({
-      size: clippedVerticesBuffer.size,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-      label: 'readClippedVerticesBuffer',
+    const readClippedPolylineBuffer = this.#device.createBuffer({
+      size: clippedPolylineBuffer.size,
+      usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+      label: 'readClippedPolylineBuffer',
     });
 
-    const maxLineSegments = polylines.length * 512;
-    const lineSegmentsBuffer = this.#device.createBuffer({
-      size: maxLineSegments * 4 * Float32Array.BYTES_PER_ELEMENT,
+    const debugBuffer = this.#device.createBuffer({
+      size: polyline.length * 4 * Float64Array.BYTES_PER_ELEMENT,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-      label: 'lineSegmentsBuffer',
+      label: 'debugBuffer',
     });
 
-    const readLineSegmentsBuffer = this.#device.createBuffer({
-      size: lineSegmentsBuffer.size,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-      label: 'readLineSegmentsBuffer',
+    const readDebugBuffer = this.#device.createBuffer({
+      size: debugBuffer.size,
+      usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+      label: 'readDebugBuffer',
     });
 
     const bindGroupLayout = this.#device.createBindGroupLayout({
@@ -158,11 +108,6 @@ export class GPULineClipper {
           visibility: GPUShaderStage.COMPUTE,
           buffer: { type: 'storage' },
         },
-        {
-          binding: 4,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: 'storage' },
-        },
       ],
     });
 
@@ -180,67 +125,60 @@ export class GPULineClipper {
     const bindGroup = this.#device.createBindGroup({
       layout: this.#pipeline.getBindGroupLayout(0),
       entries: [
-        { binding: 0, resource: { buffer: polylineVerticesBuffer } },
+        { binding: 0, resource: { buffer: verticesBuffer } },
         { binding: 1, resource: { buffer: edgeBuffer } },
-        { binding: 2, resource: { buffer: clippedVerticesBuffer } },
-        { binding: 3, resource: { buffer: metadataBuffer } },
-        { binding: 4, resource: { buffer: lineSegmentsBuffer } },
+        { binding: 2, resource: { buffer: clippedPolylineBuffer } },
+        { binding: 3, resource: { buffer: debugBuffer } },
       ],
     });
-
-    console.log(`Dispatching ${polylines.length} workgroups`);
 
     // Dispatch
     const commandEncoder = this.#device.createCommandEncoder();
     const passEncoder = commandEncoder.beginComputePass();
     passEncoder.setPipeline(this.#pipeline);
     passEncoder.setBindGroup(0, bindGroup);
-    passEncoder.dispatchWorkgroups(polylines.length);
+    passEncoder.dispatchWorkgroups(1);
     passEncoder.end();
     commandEncoder.copyBufferToBuffer(
-      clippedVerticesBuffer,
+      clippedPolylineBuffer,
       0,
-      readClippedVerticesBuffer,
+      readClippedPolylineBuffer,
       0,
-      clippedVerticesBuffer.size,
+      clippedPolylineBuffer.size,
     );
     commandEncoder.copyBufferToBuffer(
-      lineSegmentsBuffer,
+      debugBuffer,
       0,
-      readLineSegmentsBuffer,
+      readDebugBuffer,
       0,
-      lineSegmentsBuffer.size,
+      debugBuffer.size,
     );
     this.#device.queue.submit([commandEncoder.finish()]);
 
-    await readLineSegmentsBuffer.mapAsync(GPUMapMode.READ);
-    const lineSegmentsData = new Float32Array(
-      readLineSegmentsBuffer.getMappedRange(),
+    await readClippedPolylineBuffer.mapAsync(GPUMapMode.READ);
+    const clippedPolylineData = new Float32Array(
+      readClippedPolylineBuffer.getMappedRange(),
     );
-    console.log(lineSegmentsData);
-    lineSegmentsBuffer.unmap();
+    console.log(clippedPolylineData);
+    const clippedData = parseClippedPolyline(clippedPolylineData);
+    console.log(clippedData);
 
-    // Read buffers
-    await readClippedVerticesBuffer.mapAsync(GPUMapMode.READ);
-    const clippedVerticesData = new Float32Array(
-      readClippedVerticesBuffer.getMappedRange(),
-    );
+    readClippedPolylineBuffer.unmap();
 
-    const result = Array.from(clippedVerticesData)
-      .map((vertex, i, arr) => {
-        if (i % 2 === 0) {
-          return [vertex, arr[i + 1]];
-        }
-        return null;
-      })
-      .filter(Boolean);
-    readClippedVerticesBuffer.unmap();
-    return result;
+    await readDebugBuffer.mapAsync(GPUMapMode.READ);
+    const debugIndexData = new Uint32Array(readDebugBuffer.getMappedRange());
+    const debugData = [];
+
+    for (const d of debugIndexData) {
+      debugData.push(d);
+    }
+
+    console.log(debugData);
+
+    return clippedData;
   }
 
   async clipLines(lines, polygon) {
-    await this.#ready; // Wait for GPU initialization to complete
-
     this.#pipeline = this.#device.createComputePipeline({
       layout: 'auto',
       compute: {
@@ -249,8 +187,6 @@ export class GPULineClipper {
       },
     });
 
-    // Buffers
-    // Create buffers
     const edgeData = new Float32Array(
       GPULineClipper.#convertPolygonToEdges(polygon),
     );
@@ -332,9 +268,38 @@ export class GPULineClipper {
       ]);
     }
     readClippedLinesBuffer.unmap();
-
     return clippedLines.filter(
       (line) => !line.every((pt) => pt.X === 0 && pt.Y === 0),
     );
   }
+}
+
+function parseClippedPolyline(data) {
+  const polylines = [];
+  let currentPolyline = [];
+
+  for (let i = 0; i < data.length; i += 4) {
+    const x = data[i];
+    const y = data[i + 1];
+    const s = data[i + 2];
+    const isSentinel = [x, y, s].every((v) => v === -1);
+
+    if (isSentinel) {
+      if (currentPolyline.length > 0) {
+        polylines.push(currentPolyline);
+        currentPolyline = [];
+      }
+    } else {
+      currentPolyline.push({ X: x, Y: y });
+    }
+  }
+
+  if (
+    currentPolyline.length > 0 &&
+    !currentPolyline.every((pt) => pt.X === 0 && pt.Y === 0)
+  ) {
+    polylines.push(currentPolyline);
+  }
+
+  return polylines;
 }
