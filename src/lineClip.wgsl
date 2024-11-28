@@ -180,6 +180,29 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
         p2,
       );
       clippedCount = clippedCount + 1u;
+    } else {
+      clippedLinesBuffer[clippedBaseOffset + clippedCount] = Line(
+        lines[lineIndex].start,
+        intersectionsBuffer[baseOffset].point,
+      );
+      clippedCount = clippedCount + 1u;
+      
+      // Create clipped line segments from pairs of intersections
+      for (var i = 1u; i + 1u < count - 1; i = i + 2u) {
+        if (clippedCount < intersectionsPerLine) {
+          clippedLinesBuffer[clippedBaseOffset + clippedCount] = Line(
+            intersectionsBuffer[baseOffset + i].point,
+            intersectionsBuffer[baseOffset + i + 1u].point
+          );
+          clippedCount = clippedCount + 1u;
+        }
+      }
+
+      clippedLinesBuffer[clippedBaseOffset + clippedCount] = Line(
+        intersectionsBuffer[baseOffset + count - 1].point,
+        lines[lineIndex].end,
+      );
+      clippedCount = clippedCount + 1u;
     }
   }
 
