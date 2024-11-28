@@ -1,8 +1,3 @@
-struct Intersection {
-  point: vec2f,
-  isValid: u32
-}
-
 struct Point {
   value: vec2f,
   isSentinel: u32
@@ -18,24 +13,24 @@ struct Edge {
 @group(0) @binding(2) var<storage, read_write> clippedPolylineBuffer: array<vec3f>;
 @group(0) @binding(3) var<storage, read_write> debugBuffer: array<u32>;
 
-fn lineIntersection(p1: vec2f, p2: vec2f, p3: vec2f, p4: vec2f) -> Intersection {
+fn lineIntersection(p1: vec2f, p2: vec2f, p3: vec2f, p4: vec2f) -> vec3f {
   let s1 = vec2<f32>(p2.x - p1.x, p2.y - p1.y);
   let s2 = vec2<f32>(p4.x - p3.x, p4.y - p3.y);
 
   let denom = -s2.x * s1.y + s1.x * s2.y;
 
   if (abs(denom) < 1e-6) {
-    return Intersection(vec2f(-1.0, -1.0), 0); // No intersection
+    return vec3f(-1.0, -1.0, 0.0); // No intersection
   }
 
   let s = (-s1.y * (p1.x - p3.x) + s1.x * (p1.y - p3.y)) / denom;
   let t = (s2.x * (p1.y - p3.y) - s2.y * (p1.x - p3.x)) / denom;
 
   if (s >= 0.0 && s <= 1.0 && t >= 0.0 && t <= 1.0) {
-    return Intersection(vec2f(p1.x + t * s1.x, p1.y + t * s1.y), 1);
+    return vec3f(p1.x + t * s1.x, p1.y + t * s1.y, 1.0);
   }
 
-  return Intersection(vec2f(-1.0, -1.0), 0); // No intersection
+  return vec3f(-1.0, -1.0, 0.0); // No intersection
 }
 
 fn isPointInsidePolygon(testPoint: vec2<f32>) -> bool {
@@ -128,8 +123,8 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
       let edge = edges[j];
       let intersection = lineIntersection(p1, p2, edge.start, edge.end);
 
-      if (intersection.isValid == 1u) {
-        intersections[intersectionCount] = intersection.point;
+      if (intersection.z == 1.0) {
+        intersections[intersectionCount] = intersection.xy;
         intersectionCount = intersectionCount + 1u;
       }
     }
