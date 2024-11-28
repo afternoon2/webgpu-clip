@@ -38,6 +38,33 @@ fn lineIntersection(p1: vec2f, p2: vec2f, p3: vec2f, p4: vec2f) -> Intersection 
 
   return Intersection(vec2f(-1.0, -1.0), 0); // No intersection
 }
+fn isPointInsidePolygon(testPoint: vec2<f32>) -> bool {
+    var leftNodes = 0;
+    var rightNodes = 0;
+
+    for (var i = 0u; i < arrayLength(&edges); i = i + 1u) {
+        let edge = edges[i];
+
+        // Check if the edge crosses the Y threshold of the test point
+        if ((edge.start.y <= testPoint.y && edge.end.y > testPoint.y) || 
+            (edge.start.y > testPoint.y && edge.end.y <= testPoint.y)) {
+            
+            // Calculate the X-coordinate of the intersection
+            let slope = (edge.end.x - edge.start.x) / (edge.end.y - edge.start.y);
+            let intersectX = edge.start.x + (testPoint.y - edge.start.y) * slope;
+
+            // Count nodes on the left or right side
+            if (intersectX < testPoint.x) {
+                leftNodes = leftNodes + 1;
+            } else {
+                rightNodes = rightNodes + 1;
+            }
+        }
+    }
+
+    // Determine if the point is inside the polygon
+    return (leftNodes % 2 != 0) && (rightNodes % 2 != 0);
+}
 
 @compute @workgroup_size(1)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
@@ -90,12 +117,67 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     }
   }
 
-  // Create clipped line segments from pairs of intersections
-  for (var i = 0u; i + 1u < count; i = i + 2u) {
-    if (clippedCount < intersectionsPerLine) {
+  let p1 = lines[lineIndex].start;
+  let p2 = lines[lineIndex].end;
+
+  let p1Inside = isPointInsidePolygon(p1);
+  let p2Inside = isPointInsidePolygon(p2);
+
+  if (clippedCount == 1u) {
+    if (!p1Inside) {
       clippedLinesBuffer[clippedBaseOffset + clippedCount] = Line(
-        intersectionsBuffer[baseOffset + i].point,
-        intersectionsBuffer[baseOffset + i + 1u].point
+        intersectionsBuffer[baseOffset].point,
+        lines[lineIndex].end
+      );
+      clippedCount = clippedCount + 1u;
+    } else if (!p2Inside) {
+      clippedLinesBuffer[clippedBaseOffset + clippedCount] = Line(
+        lines[lineIndex].start,
+        intersectionsBuffer[baseOffset].point,
+      );
+      clippedCount = clippedCount + 1u;
+    }
+  } else {
+    if (!p1Inside && !p2Inside) {
+      // Create clipped line segments from pairs of intersections
+      for (var i = 0u; i + 1u < count; i = i + 2u) {
+        if (clippedCount < intersectionsPerLine) {
+          clippedLinesBuffer[clippedBaseOffset + clippedCount] = Line(
+            intersectionsBuffer[baseOffset + i].point,
+            intersectionsBuffer[baseOffset + i + 1u].point
+          );
+          clippedCount = clippedCount + 1u;
+        }
+      }
+    } else if (p1Inside && !p2Inside) {
+      clippedLinesBuffer[clippedBaseOffset + clippedCount] = Line(
+        lines[lineIndex].start,
+        intersectionsBuffer[baseOffset].point,
+      );
+      clippedCount = clippedCount + 1u;
+
+      for (var i = 1u; i + 1u < count; i = i + 2u) {
+        if (clippedCount < intersectionsPerLine) {
+          clippedLinesBuffer[clippedBaseOffset + clippedCount] = Line(
+            intersectionsBuffer[baseOffset + i].point,
+            intersectionsBuffer[baseOffset + i + 1u].point
+          );
+          clippedCount = clippedCount + 1u;
+        }
+      }
+    } else if (!p1Inside && p2Inside) {
+      for (var i = 0u; i + 1u < count - 1u; i = i + 2u) {
+        if (clippedCount < intersectionsPerLine) {
+          clippedLinesBuffer[clippedBaseOffset + clippedCount] = Line(
+            intersectionsBuffer[baseOffset + i].point,
+            intersectionsBuffer[baseOffset + i + 1u].point
+          );
+          clippedCount = clippedCount + 1u;
+        }
+      }
+      clippedLinesBuffer[clippedBaseOffset + clippedCount] = Line(
+        intersectionsBuffer[baseOffset + count - 1u].point,
+        p2,
       );
       clippedCount = clippedCount + 1u;
     }
