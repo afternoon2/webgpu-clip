@@ -1,21 +1,17 @@
-struct Point {
-  X: f32,
-  Y: f32,
-};
 
 struct Intersection {
-  point: Point,
+  point: vec2f,
   isValid: u32, // Use u32 instead of bool
 };
 
 struct Line {
-  start: Point,
-  end: Point,
+  start: vec2f,
+  end: vec2f,
 };
 
 struct Edge {
-  start: Point,
-  end: Point,
+  start: vec2f,
+  end: vec2f,
 };
 
 @group(0) @binding(0) var<storage, read> lines: array<Line>;
@@ -23,24 +19,24 @@ struct Edge {
 @group(0) @binding(2) var<storage, read_write> intersectionsBuffer: array<Intersection>;
 @group(0) @binding(3) var<storage, read_write> clippedLinesBuffer: array<Line>;
 
-fn lineIntersection(p1: Point, p2: Point, p3: Point, p4: Point) -> Intersection {
-  let s1 = vec2<f32>(p2.X - p1.X, p2.Y - p1.Y);
-  let s2 = vec2<f32>(p4.X - p3.X, p4.Y - p3.Y);
+fn lineIntersection(p1: vec2f, p2: vec2f, p3: vec2f, p4: vec2f) -> Intersection {
+  let s1 = vec2<f32>(p2.x - p1.x, p2.y - p1.y);
+  let s2 = vec2<f32>(p4.x - p3.x, p4.y - p3.y);
 
   let denom = -s2.x * s1.y + s1.x * s2.y;
 
   if (abs(denom) < 1e-6) {
-    return Intersection(Point(-1.0, -1.0), 0); // No intersection
+    return Intersection(vec2f(-1.0, -1.0), 0); // No intersection
   }
 
-  let s = (-s1.y * (p1.X - p3.X) + s1.x * (p1.Y - p3.Y)) / denom;
-  let t = (s2.x * (p1.Y - p3.Y) - s2.y * (p1.X - p3.X)) / denom;
+  let s = (-s1.y * (p1.x - p3.x) + s1.x * (p1.y - p3.y)) / denom;
+  let t = (s2.x * (p1.y - p3.y) - s2.y * (p1.x - p3.x)) / denom;
 
   if (s >= 0.0 && s <= 1.0 && t >= 0.0 && t <= 1.0) {
-    return Intersection(Point(p1.X + t * s1.x, p1.Y + t * s1.y), 1);
+    return Intersection(vec2f(p1.x + t * s1.x, p1.y + t * s1.y), 1);
   }
 
-  return Intersection(Point(-1.0, -1.0), 0); // No intersection
+  return Intersection(vec2f(-1.0, -1.0), 0); // No intersection
 }
 
 @compute @workgroup_size(1)
@@ -78,12 +74,12 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   for (var i = 0u; i < count; i = i + 1u) {
     for (var j = i + 1u; j < count; j = j + 1u) {
       let d1 = distance(vec2<f32>(
-        intersectionsBuffer[baseOffset + i].point.X, intersectionsBuffer[baseOffset + i].point.Y),
-        vec2<f32>(lines[lineIndex].start.X, lines[lineIndex].start.Y)
+        intersectionsBuffer[baseOffset + i].point.x, intersectionsBuffer[baseOffset + i].point.y),
+        vec2<f32>(lines[lineIndex].start.x, lines[lineIndex].start.y)
       );
       let d2 = distance(vec2<f32>(
-        intersectionsBuffer[baseOffset + j].point.X, intersectionsBuffer[baseOffset + j].point.Y),
-        vec2<f32>(lines[lineIndex].start.X, lines[lineIndex].start.Y)
+        intersectionsBuffer[baseOffset + j].point.x, intersectionsBuffer[baseOffset + j].point.y),
+        vec2<f32>(lines[lineIndex].start.x, lines[lineIndex].start.y)
       );
 
       if (d2 < d1) {
@@ -107,6 +103,6 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 
   // Optional: Mark unused slots in buffers with a sentinel value
   for (var i = count; i < intersectionsPerLine; i = i + 1u) {
-    intersectionsBuffer[baseOffset + i] = Intersection(Point(-1.0, -1.0), 0);
+    intersectionsBuffer[baseOffset + i] = Intersection(vec2f(-1.0, -1.0), 0);
   }
 }
