@@ -1,7 +1,6 @@
 @group(0) @binding(0) var<storage, read> vertices: array<vec2f>;
 @group(0) @binding(1) var<storage, read> edges: array<vec4f>;
-@group(0) @binding(2) var<storage, read_write> clippedPolylineBuffer: array<vec3f>;
-@group(0) @binding(3) var<storage, read_write> debugBuffer: array<u32>;
+@group(0) @binding(2) var<storage, read_write> clippedPolylineBuffer: array<vec4f>;
 
 fn lineIntersection(p1: vec2f, p2: vec2f, p3: vec2f, p4: vec2f) -> vec3f {
   let s1 = vec2<f32>(p2.x - p1.x, p2.y - p1.y);
@@ -55,41 +54,28 @@ var<workgroup> outputIndex: atomic<u32>;
 var<workgroup> debugIndex: atomic<u32>;
 
 fn addPoint(point: vec2<f32>) {
-    let idx = atomicAdd(&outputIndex, 1u);
-    if (idx < arrayLength(&clippedPolylineBuffer)) {
-        clippedPolylineBuffer[idx] = vec3f(point, 1.0);
-    } else {
-        debugBuffer[atomicAdd(&debugIndex, 1u)] = 0xFFFFFFFFu; // Log overflow
-    }
+  let idx = atomicAdd(&outputIndex, 1u);
+  clippedPolylineBuffer[idx] = vec4f(point, 1.0, 0.0); // Add extra float for padding
 }
 
 fn addSentinel() {
-    let idx = atomicAdd(&outputIndex, 1u);
-    if (idx < arrayLength(&clippedPolylineBuffer)) {
-        clippedPolylineBuffer[idx] = vec3f(-1.0, -1.0, -1.0);
-    } else {
-        debugBuffer[atomicAdd(&debugIndex, 1u)] = 0xFFFFFFFFu; // Log overflow
-    }
+  let idx = atomicAdd(&outputIndex, 1u);
+  clippedPolylineBuffer[idx] = vec4f(-1.0, -1.0, -1.0, 0.0);
 }
 
 @compute @workgroup_size(1)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
-  let vertexIndex = id.x;
-
   if (id.x == 0u) {
     atomicStore(&outputIndex, 0u);
-    atomicStore(&debugIndex, 0u);
+
+    // Clear clippedPolylineBuffer
+    for (var i = 0u; i < arrayLength(&clippedPolylineBuffer); i = i + 1u) {
+      clippedPolylineBuffer[i] = vec4f(0.0, 0.0, 0.0, 0.0);
+    }
   }
   workgroupBarrier();
 
-  // if (atomicLoad(&outputIndex) >= arrayLength(&clippedPolylineBuffer)) {
-  //   debugBuffer[atomicAdd(&debugIndex, 1u)] = 0xFFFFFFFFu; // Log overflow
-  //   return;
-  // }
-
-  debugBuffer[atomicAdd(&debugIndex, 1u)] = id.x;
-
-  if (vertexIndex >= arrayLength(&vertices)) {
+  if (id.x >= arrayLength(&vertices)) {
     return;
   }
 
@@ -166,7 +152,6 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
       if (intersectionCount == 1u) {
         addPoint(intersections[0]);
         addPoint(p2);
-        addSentinel();
       } else {
         for (var i = 0u; i < intersectionCount - 1u; i = i + 2u) {
           addPoint(intersections[i]);

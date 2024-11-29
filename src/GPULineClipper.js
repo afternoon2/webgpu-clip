@@ -59,11 +59,8 @@ export class GPULineClipper {
     const edgeBuffer = this.#createMappedStorageCopyDataBuffer(edgeData);
 
     const maxPoints = vertices.length * edgeData.length * 3;
-
     const clippedPolylineBuffer = this.#device.createBuffer({
-      size:
-        maxPoints *
-        (2 * Float32Array.BYTES_PER_ELEMENT + Uint32Array.BYTES_PER_ELEMENT),
+      size: maxPoints * 4 * Float32Array.BYTES_PER_ELEMENT,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
       label: 'clippedFragmentsBuffer',
     });
@@ -72,18 +69,6 @@ export class GPULineClipper {
       size: clippedPolylineBuffer.size,
       usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
       label: 'readClippedPolylineBuffer',
-    });
-
-    const debugBuffer = this.#device.createBuffer({
-      size: polyline.length * 4 * Float64Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-      label: 'debugBuffer',
-    });
-
-    const readDebugBuffer = this.#device.createBuffer({
-      size: debugBuffer.size,
-      usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-      label: 'readDebugBuffer',
     });
 
     const bindGroupLayout = this.#device.createBindGroupLayout({
@@ -100,11 +85,6 @@ export class GPULineClipper {
         },
         {
           binding: 2,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: 'storage' },
-        },
-        {
-          binding: 3,
           visibility: GPUShaderStage.COMPUTE,
           buffer: { type: 'storage' },
         },
@@ -128,7 +108,6 @@ export class GPULineClipper {
         { binding: 0, resource: { buffer: verticesBuffer } },
         { binding: 1, resource: { buffer: edgeBuffer } },
         { binding: 2, resource: { buffer: clippedPolylineBuffer } },
-        { binding: 3, resource: { buffer: debugBuffer } },
       ],
     });
 
@@ -146,34 +125,15 @@ export class GPULineClipper {
       0,
       clippedPolylineBuffer.size,
     );
-    commandEncoder.copyBufferToBuffer(
-      debugBuffer,
-      0,
-      readDebugBuffer,
-      0,
-      debugBuffer.size,
-    );
     this.#device.queue.submit([commandEncoder.finish()]);
 
     await readClippedPolylineBuffer.mapAsync(GPUMapMode.READ);
     const clippedPolylineData = new Float32Array(
       readClippedPolylineBuffer.getMappedRange(),
     );
-    console.log(clippedPolylineData);
     const clippedData = parseClippedPolyline(clippedPolylineData);
-    console.log(clippedData);
 
     readClippedPolylineBuffer.unmap();
-
-    await readDebugBuffer.mapAsync(GPUMapMode.READ);
-    const debugIndexData = new Uint32Array(readDebugBuffer.getMappedRange());
-    const debugData = [];
-
-    for (const d of debugIndexData) {
-      debugData.push(d);
-    }
-
-    console.log(debugData);
 
     return clippedData;
   }
