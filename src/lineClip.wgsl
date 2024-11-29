@@ -1,12 +1,7 @@
-struct Line {
-  start: vec2f,
-  end: vec2f,
-};
-
-@group(0) @binding(0) var<storage, read> lines: array<Line>;
+@group(0) @binding(0) var<storage, read> lines: array<vec4f>;
 @group(0) @binding(1) var<storage, read> edges: array<vec4f>;
 @group(0) @binding(2) var<storage, read_write> intersectionsBuffer: array<vec3f>;
-@group(0) @binding(3) var<storage, read_write> clippedLinesBuffer: array<Line>;
+@group(0) @binding(3) var<storage, read_write> clippedLinesBuffer: array<vec4f>;
 
 fn lineIntersection(p1: vec2f, p2: vec2f, p3: vec2f, p4: vec2f) -> vec3f {
   let s1 = vec2<f32>(p2.x - p1.x, p2.y - p1.y);
@@ -76,7 +71,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   // Process edges and find intersections
   for (var i = 0u; i < arrayLength(&edges); i = i + 1u) {
     let edge = edges[i];
-    let result = lineIntersection(lines[lineIndex].start, lines[lineIndex].end, edge.xy, edge.zw);
+    let result = lineIntersection(lines[lineIndex].xy, lines[lineIndex].zw, edge.xy, edge.zw);
 
     if (result.z == 1.0) { // check if intersection is valid
       if (count < intersectionsPerLine) {
@@ -91,11 +86,11 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     for (var j = i + 1u; j < count; j = j + 1u) {
       let d1 = distance(vec2<f32>(
         intersectionsBuffer[baseOffset + i].x, intersectionsBuffer[baseOffset + i].y),
-        vec2<f32>(lines[lineIndex].start.x, lines[lineIndex].start.y)
+        vec2<f32>(lines[lineIndex].x, lines[lineIndex].y)
       );
       let d2 = distance(vec2<f32>(
         intersectionsBuffer[baseOffset + j].x, intersectionsBuffer[baseOffset + j].y),
-        vec2<f32>(lines[lineIndex].start.x, lines[lineIndex].start.y)
+        vec2<f32>(lines[lineIndex].x, lines[lineIndex].y)
       );
 
       if (d2 < d1) {
@@ -106,22 +101,22 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     }
   }
 
-  let p1 = lines[lineIndex].start;
-  let p2 = lines[lineIndex].end;
+  let p1 = lines[lineIndex].xy;
+  let p2 = lines[lineIndex].zw;
 
   let p1Inside = isPointInsidePolygon(p1);
   let p2Inside = isPointInsidePolygon(p2);
 
   if (clippedCount == 1u) {
     if (!p1Inside) {
-      clippedLinesBuffer[clippedBaseOffset + clippedCount] = Line(
+      clippedLinesBuffer[clippedBaseOffset + clippedCount] = vec4f(
         intersectionsBuffer[baseOffset].xy,
-        lines[lineIndex].end
+        lines[lineIndex].zw
       );
       clippedCount = clippedCount + 1u;
     } else if (!p2Inside) {
-      clippedLinesBuffer[clippedBaseOffset + clippedCount] = Line(
-        lines[lineIndex].start,
+      clippedLinesBuffer[clippedBaseOffset + clippedCount] = vec4f(
+        lines[lineIndex].xy,
         intersectionsBuffer[baseOffset].xy,
       );
       clippedCount = clippedCount + 1u;
@@ -131,7 +126,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
       // Create clipped line segments from pairs of intersections
       for (var i = 0u; i + 1u < count; i = i + 2u) {
         if (clippedCount < intersectionsPerLine) {
-          clippedLinesBuffer[clippedBaseOffset + clippedCount] = Line(
+          clippedLinesBuffer[clippedBaseOffset + clippedCount] = vec4f(
             intersectionsBuffer[baseOffset + i].xy,
             intersectionsBuffer[baseOffset + i + 1u].xy
           );
@@ -139,15 +134,15 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
         }
       }
     } else if (p1Inside && !p2Inside) {
-      clippedLinesBuffer[clippedBaseOffset + clippedCount] = Line(
-        lines[lineIndex].start,
+      clippedLinesBuffer[clippedBaseOffset + clippedCount] = vec4f(
+        lines[lineIndex].xy,
         intersectionsBuffer[baseOffset].xy,
       );
       clippedCount = clippedCount + 1u;
 
       for (var i = 1u; i + 1u < count; i = i + 2u) {
         if (clippedCount < intersectionsPerLine) {
-          clippedLinesBuffer[clippedBaseOffset + clippedCount] = Line(
+          clippedLinesBuffer[clippedBaseOffset + clippedCount] = vec4f(
             intersectionsBuffer[baseOffset + i].xy,
             intersectionsBuffer[baseOffset + i + 1u].xy
           );
@@ -157,21 +152,21 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     } else if (!p1Inside && p2Inside) {
       for (var i = 0u; i + 1u < count - 1u; i = i + 2u) {
         if (clippedCount < intersectionsPerLine) {
-          clippedLinesBuffer[clippedBaseOffset + clippedCount] = Line(
+          clippedLinesBuffer[clippedBaseOffset + clippedCount] = vec4f(
             intersectionsBuffer[baseOffset + i].xy,
             intersectionsBuffer[baseOffset + i + 1u].xy
           );
           clippedCount = clippedCount + 1u;
         }
       }
-      clippedLinesBuffer[clippedBaseOffset + clippedCount] = Line(
+      clippedLinesBuffer[clippedBaseOffset + clippedCount] = vec4f(
         intersectionsBuffer[baseOffset + count - 1u].xy,
         p2,
       );
       clippedCount = clippedCount + 1u;
     } else {
-      clippedLinesBuffer[clippedBaseOffset + clippedCount] = Line(
-        lines[lineIndex].start,
+      clippedLinesBuffer[clippedBaseOffset + clippedCount] = vec4f(
+        lines[lineIndex].xy,
         intersectionsBuffer[baseOffset].xy,
       );
       clippedCount = clippedCount + 1u;
@@ -179,7 +174,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
       // Create clipped line segments from pairs of intersections
       for (var i = 1u; i + 1u < count - 1; i = i + 2u) {
         if (clippedCount < intersectionsPerLine) {
-          clippedLinesBuffer[clippedBaseOffset + clippedCount] = Line(
+          clippedLinesBuffer[clippedBaseOffset + clippedCount] = vec4f(
             intersectionsBuffer[baseOffset + i].xy,
             intersectionsBuffer[baseOffset + i + 1u].xy
           );
@@ -187,9 +182,9 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
         }
       }
 
-      clippedLinesBuffer[clippedBaseOffset + clippedCount] = Line(
+      clippedLinesBuffer[clippedBaseOffset + clippedCount] = vec4f(
         intersectionsBuffer[baseOffset + count - 1].xy,
-        lines[lineIndex].end,
+        lines[lineIndex].zw,
       );
       clippedCount = clippedCount + 1u;
     }
