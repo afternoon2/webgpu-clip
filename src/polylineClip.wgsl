@@ -3,13 +3,8 @@ struct Point {
   isSentinel: u32
 }
 
-struct Edge {
-  start: vec2f,
-  end: vec2f
-}
-
 @group(0) @binding(0) var<storage, read> vertices: array<vec2f>;
-@group(0) @binding(1) var<storage, read> edges: array<Edge>;
+@group(0) @binding(1) var<storage, read> edges: array<vec4f>;
 @group(0) @binding(2) var<storage, read_write> clippedPolylineBuffer: array<vec3f>;
 @group(0) @binding(3) var<storage, read_write> debugBuffer: array<u32>;
 
@@ -41,12 +36,12 @@ fn isPointInsidePolygon(testPoint: vec2<f32>) -> bool {
     let edge = edges[i];
 
     // Check if the edge crosses the Y threshold of the test point
-    if ((edge.start.y <= testPoint.y && edge.end.y > testPoint.y) || 
-      (edge.start.y > testPoint.y && edge.end.y <= testPoint.y)) {
+    if ((edge.y <= testPoint.y && edge.w > testPoint.y) || 
+      (edge.y > testPoint.y && edge.w <= testPoint.y)) {
       
       // Calculate the X-coordinate of the intersection
-      let slope = (edge.end.x - edge.start.x) / (edge.end.y - edge.start.y);
-      let intersectX = edge.start.x + (testPoint.y - edge.start.y) * slope;
+      let slope = (edge.z - edge.x) / (edge.w - edge.y);
+      let intersectX = edge.x + (testPoint.y - edge.y) * slope;
 
       // Count nodes on the left or right side
       if (intersectX < testPoint.x) {
@@ -121,7 +116,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 
     for (var j = 0u; j < arrayLength(&edges); j = j + 1u) {
       let edge = edges[j];
-      let intersection = lineIntersection(p1, p2, edge.start, edge.end);
+      let intersection = lineIntersection(p1, p2, edge.xy, edge.zw);
 
       if (intersection.z == 1.0) {
         intersections[intersectionCount] = intersection.xy;

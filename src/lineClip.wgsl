@@ -3,13 +3,8 @@ struct Line {
   end: vec2f,
 };
 
-struct Edge {
-  start: vec2f,
-  end: vec2f,
-};
-
 @group(0) @binding(0) var<storage, read> lines: array<Line>;
-@group(0) @binding(1) var<storage, read> edges: array<Edge>;
+@group(0) @binding(1) var<storage, read> edges: array<vec4f>;
 @group(0) @binding(2) var<storage, read_write> intersectionsBuffer: array<vec3f>;
 @group(0) @binding(3) var<storage, read_write> clippedLinesBuffer: array<Line>;
 
@@ -40,12 +35,12 @@ fn isPointInsidePolygon(testPoint: vec2<f32>) -> bool {
         let edge = edges[i];
 
         // Check if the edge crosses the Y threshold of the test point
-        if ((edge.start.y <= testPoint.y && edge.end.y > testPoint.y) || 
-            (edge.start.y > testPoint.y && edge.end.y <= testPoint.y)) {
+        if ((edge.y <= testPoint.y && edge.w > testPoint.y) || 
+            (edge.y > testPoint.y && edge.w <= testPoint.y)) {
             
             // Calculate the X-coordinate of the intersection
-            let slope = (edge.end.x - edge.start.x) / (edge.end.y - edge.start.y);
-            let intersectX = edge.start.x + (testPoint.y - edge.start.y) * slope;
+            let slope = (edge.z - edge.x) / (edge.z - edge.y);
+            let intersectX = edge.x + (testPoint.y - edge.y) * slope;
 
             // Count nodes on the left or right side
             if (intersectX < testPoint.x) {
@@ -81,7 +76,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   // Process edges and find intersections
   for (var i = 0u; i < arrayLength(&edges); i = i + 1u) {
     let edge = edges[i];
-    let result = lineIntersection(lines[lineIndex].start, lines[lineIndex].end, edge.start, edge.end);
+    let result = lineIntersection(lines[lineIndex].start, lines[lineIndex].end, edge.xy, edge.zw);
 
     if (result.z == 1.0) { // check if intersection is valid
       if (count < intersectionsPerLine) {
