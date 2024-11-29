@@ -22,20 +22,23 @@ fn lineIntersection(p1: vec2f, p2: vec2f, p3: vec2f, p4: vec2f) -> vec3f {
 
   return vec3f(1.0, -1.0, 0.0); // No intersection
 }
-fn isPointInsidePolygon(testPoint: vec2<f32>) -> bool {
+
+fn isPointInsidePolygon(testPoint: vec2f) -> bool {
     var leftNodes = 0;
     var rightNodes = 0;
 
     for (var i = 0u; i < arrayLength(&edges); i = i + 1u) {
         let edge = edges[i];
+        let start = vec2<f32>(edge.x, edge.y); // Extract start point
+        let end = vec2<f32>(edge.z, edge.w);   // Extract end point
 
         // Check if the edge crosses the Y threshold of the test point
-        if ((edge.y <= testPoint.y && edge.w > testPoint.y) || 
-            (edge.y > testPoint.y && edge.w <= testPoint.y)) {
-            
+        if ((start.y <= testPoint.y && end.y > testPoint.y) || 
+            (start.y > testPoint.y && end.y <= testPoint.y)) {
+
             // Calculate the X-coordinate of the intersection
-            let slope = (edge.z - edge.x) / (edge.z - edge.y);
-            let intersectX = edge.x + (testPoint.y - edge.y) * slope;
+            let slope = (end.x - start.x) / (end.y - start.y);
+            let intersectX = start.x + (testPoint.y - start.y) * slope;
 
             // Count nodes on the left or right side
             if (intersectX < testPoint.x) {
@@ -183,7 +186,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
       }
 
       clippedLinesBuffer[clippedBaseOffset + clippedCount] = vec4f(
-        intersectionsBuffer[baseOffset + count - 1].xy,
+        intersectionsBuffer[baseOffset + count - 1u].xy,
         lines[lineIndex].zw,
       );
       clippedCount = clippedCount + 1u;
