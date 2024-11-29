@@ -1,8 +1,11 @@
 import './style.css';
 import { GPULineClipper } from './src/GPULineClipper.js';
+import { setup } from './src/setup.js';
 
 const CANVAS_WIDTH = 1000;
 const CANVAS_HEIGHT = 1000;
+
+const device = await setup();
 
 const polygon = [
   [
@@ -582,8 +585,8 @@ const polygon = [
 
 const lines = [
   [
-    { X: 10, Y: 200 },
-    { X: 1500, Y: 200 },
+    { X: 140, Y: 200 },
+    { X: 200, Y: 200 },
   ],
   [
     { X: 10, Y: 210 },
@@ -599,9 +602,29 @@ const lines = [
   ],
 ];
 
-const clipper = new GPULineClipper();
+const clipper = new GPULineClipper(device);
+
+const polylines = [
+  [
+    { X: 40, Y: 100 },
+    { X: 200, Y: 100 },
+    { X: 300, Y: 300 },
+  ],
+  [
+    { X: 300, Y: 100 },
+    { X: 400, Y: 100 },
+  ],
+];
+
+// const result = await clipper.clipPolyline(polylines[0], polygon);
 
 const result = await clipper.clipLines(lines, polygon);
+
+const result2 = await Promise.all(
+  polylines.map((polyline) => clipper.clipPolyline(polyline, polygon)),
+);
+
+console.log(result2);
 
 const canvas = document.querySelector('canvas');
 
@@ -609,7 +632,7 @@ canvas.width = CANVAS_WIDTH;
 canvas.height = CANVAS_HEIGHT;
 
 const ctx = canvas.getContext('2d');
-ctx.fillStyle = 'black';
+// ctx.fillStyle = 'black';
 
 ctx.strokeStyle = 'white';
 
@@ -632,8 +655,21 @@ lines.forEach((line) => {
   ctx.beginPath();
   ctx.moveTo(line[0].X, line[0].Y);
   ctx.lineTo(line[1].X, line[1].Y);
-  ctx.closePath();
   ctx.stroke();
+});
+
+polylines.forEach((polyline) => {
+  polyline.forEach((pt, i, arr) => {
+    if (i === 0) {
+      ctx.beginPath();
+      ctx.moveTo(pt.X, pt.Y);
+    } else if (i === arr.length - 1) {
+      ctx.lineTo(pt.X, pt.Y);
+      ctx.stroke();
+    } else {
+      ctx.lineTo(pt.X, pt.Y);
+    }
+  });
 });
 
 ctx.strokeStyle = 'yellow';
@@ -646,4 +682,21 @@ result.forEach((line) => {
   ctx.stroke();
 });
 
-console.log(result);
+result2.forEach((polylines) => {
+  polylines.forEach((polyline) => {
+    polyline.forEach((pt, i, arr) => {
+      if (i === 0) {
+        ctx.beginPath();
+        ctx.moveTo(pt.X, pt.Y);
+      } else if (i === arr.length - 1) {
+        ctx.lineTo(pt.X, pt.Y);
+        ctx.closePath();
+        ctx.stroke();
+      } else {
+        ctx.lineTo(pt.X, pt.Y);
+      }
+    });
+  });
+});
+
+// console.log(result);
