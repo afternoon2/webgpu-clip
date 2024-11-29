@@ -145,12 +145,21 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     if (p1Inside && p2Inside) {
       addPoint(p1);
 
-      for (var i = 0u; i < intersectionCount; i = i + 2u) {
-        addPoint(intersections[i]);
-        addPoint(intersections[i + 1u]);
+      if (intersectionCount == 0u) {
+        addPoint(p2);
+      } else if (intersectionCount > 1u) {
+        addPoint(intersections[0u]);
         addSentinel();
+
+        for (var i = 1u; i < intersectionCount - 1u; i = i + 2u) {
+          addPoint(intersections[i]);
+          addPoint(intersections[i + 1u]);
+          addSentinel();
+        }
+
+        addPoint(intersections[intersectionCount - 1u]);
+        addPoint(p2);
       }
-      addPoint(p2);
     } else if (p1Inside && !p2Inside) {
       addPoint(p1);
       addPoint(intersections[0]);
