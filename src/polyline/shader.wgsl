@@ -1,7 +1,13 @@
-@group(0) @binding(0) var<storage, read> vertices: array<vec2f>;
-@group(0) @binding(1) var<storage, read> edges: array<vec4f>;
-@group(0) @binding(2) var<storage, read_write> clippedPolylineBuffer: array<vec4f>;
-@group(0) @binding(3) var<storage, read_write> debugBuffer: array<vec4f>;
+@group(0) @binding(0) var<storage, read> vertices: array<vec2f>; // Input polyline vertices
+@group(0) @binding(1) var<storage, read> edges: array<vec4f>;    // Clipping polygon edges
+@group(0) @binding(2) var<storage, read_write> clippedPolylineBuffer: array<vec4f>; // Output clipped polyline
+
+struct WorkgroupData {
+  outputIndex: atomic<u32>,
+  debugIndex: atomic<u32>
+}
+
+var<workgroup> sharedData: WorkgroupData;
 
 fn lineIntersection(p1: vec2f, p2: vec2f, p3: vec2f, p4: vec2f) -> vec3f {
   let s1 = vec2<f32>(p2.x - p1.x, p2.y - p1.y);
@@ -51,26 +57,41 @@ fn isPointInsidePolygon(testPoint: vec2<f32>) -> bool {
   return (leftNodes % 2 != 0) && (rightNodes % 2 != 0);
 }
 
-var<workgroup> outputIndex: atomic<u32>;
-var<workgroup> debugIndex: atomic<u32>;
-
-fn addPoint(point: vec2<f32>) {
-  let idx = atomicAdd(&outputIndex, 1u);
-  clippedPolylineBuffer[idx] = vec4f(point, 1.0, 0.0); // Add extra float for padding
+fn addPoint(point: vec2f) {
+  let idx = atomicAdd(&sharedData.outputIndex, 1u);
+  if (idx < arrayLength(&clippedPolylineBuffer)) {
+    clippedPolylineBuffer[idx] = vec4f(point, 1.0, 0.0); // Add padding
+  }
 }
 
 fn addSentinel() {
-  let idx = atomicAdd(&outputIndex, 1u);
-  clippedPolylineBuffer[idx] = vec4f(-1.0, -1.0, -1.0, 0.0);
+  let idx = atomicAdd(&sharedData.outputIndex, 1u);
+  if (idx < arrayLength(&clippedPolylineBuffer)) {
+    clippedPolylineBuffer[idx] = vec4f(-1.0, -1.0, -1.0, 0.0);
+  }
 }
 
-fn processSegment(p1: vec2f, p2: vec2f) {
-  var intersections: array<vec2f, 64>;
-  var intersectionCount = 0u;
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) globalId: vec3<u32>, @builtin(local_invocation_id) localId: vec3<u32>) {
+  let threadIndex = localId.x;
 
-  for (var n = 0u; n < 64; n = n + 1u) {
-    intersections[n] = vec2f(0.0, 0.0);
+  if (globalId.x == 0u) {
+    atomicStore(&sharedData.outputIndex, 0u);
   }
+  workgroupBarrier(); // Ensure sharedData is initialized
+
+  if (threadIndex >= arrayLength(&vertices) - 1u) {
+    return; // No segment to process
+  }
+
+  let p1 = vertices[threadIndex];
+  let p2 = vertices[threadIndex + 1u];
+
+  let p1Inside = isPointInsidePolygon(p1);
+  let p2Inside = isPointInsidePolygon(p2);
+
+  var intersections: array<vec2f, 32>;
+  var intersectionCount = 0u;
 
   for (var j = 0u; j < arrayLength(&edges); j = j + 1u) {
     let edge = edges[j];
@@ -94,9 +115,6 @@ fn processSegment(p1: vec2f, p2: vec2f) {
       }
     }
   }
-
-  let p1Inside = isPointInsidePolygon(p1);
-  let p2Inside = isPointInsidePolygon(p2);
 
   if (p1Inside && p2Inside) {
     addPoint(p1);
@@ -149,37 +167,4 @@ fn processSegment(p1: vec2f, p2: vec2f) {
       addSentinel();
     }
   }
-}
-
-@compute @workgroup_size(256)
-fn main(@builtin(global_invocation_id) id: vec3<u32>) {
-  if (id.x == 0u) {
-    atomicStore(&outputIndex, 0u);
-    atomicStore(&debugIndex, 0u);
-
-    for (var i = 0u; i < arrayLength(&debugBuffer); i = i + 1u) {
-      debugBuffer[i] = vec4f(0.0, 0.0, 0.0, 0.0);
-    }
-
-    for (var i = 0u; i < arrayLength(&clippedPolylineBuffer); i = i + 1u) {
-      clippedPolylineBuffer[i] = vec4f(0.0, 0.0, 0.0, 0.0);
-    }
-  }
-  workgroupBarrier(); // Synchronize threads
-
-  let segmentIndex = id.x;
-  let totalSegments = arrayLength(&vertices) - 1u;
-
-  if (segmentIndex >= totalSegments) {
-    return;
-  }
-
-  let p1 = vertices[segmentIndex];
-  let p2 = vertices[segmentIndex + 1u];
-
-  let debugIdx = atomicAdd(&debugIndex, 1u);
-  debugBuffer[debugIdx] = vec4f(f32(segmentIndex), p1.x, p1.y, 0.0);
-  debugBuffer[debugIdx + 1] = vec4f(f32(segmentIndex), p2.x, p2.y, 0.0);
-
-  processSegment(p1, p2);
 }

@@ -612,9 +612,9 @@ const polylines = [
     { X: 200, Y: 100 },
     { X: 300, Y: 300 },
     { X: 800, Y: 100 },
-    { X: 80, Y: 50 },
-    { X: 180, Y: 350 },
-    { X: 280, Y: 150 },
+    // { X: 80, Y: 50 },
+    // { X: 180, Y: 350 },
+    // { X: 280, Y: 150 },
   ],
   // [
   //   { X: 300, Y: 100 },
@@ -629,8 +629,6 @@ const polylines = [
 // const result = await clipper.clipPolyline(polylines[0], polygon);
 
 // const result = await clipper.clipLines(lines, polygon);
-
-const polylineClip = setup;
 
 const result2 = await Promise.all(
   polylines.map((polyline) => multilineClip(polyline, polygon)),
