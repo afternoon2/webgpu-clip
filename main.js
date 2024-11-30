@@ -1,11 +1,13 @@
 import './style.css';
 import { GPULineClipper } from './src/GPULineClipper.js';
 import { setup } from './src/setup.js';
+import { setupMultilineClip } from './src/polyline/index.js';
 
 const CANVAS_WIDTH = 1000;
 const CANVAS_HEIGHT = 1000;
 
 const device = await setup();
+const multilineClip = setupMultilineClip(device);
 
 const polygon = [
   [
@@ -602,7 +604,7 @@ const lines = [
   ],
 ];
 
-const clipper = new GPULineClipper(device);
+// const clipper = new GPULineClipper(device);
 
 const polylines = [
   [
@@ -611,23 +613,27 @@ const polylines = [
     { X: 300, Y: 300 },
     { X: 800, Y: 100 },
     { X: 80, Y: 50 },
+    { X: 180, Y: 350 },
+    { X: 280, Y: 150 },
   ],
-  [
-    { X: 300, Y: 100 },
-    { X: 400, Y: 100 },
-  ],
-  [
-    { X: 50, Y: 40 },
-    { X: 400, Y: 60 },
-  ],
+  // [
+  //   { X: 300, Y: 100 },
+  //   { X: 400, Y: 100 },
+  // ],
+  // [
+  //   { X: 50, Y: 40 },
+  //   { X: 400, Y: 60 },
+  // ],
 ];
 
 // const result = await clipper.clipPolyline(polylines[0], polygon);
 
-const result = await clipper.clipLines(lines, polygon);
+// const result = await clipper.clipLines(lines, polygon);
+
+const polylineClip = setup;
 
 const result2 = await Promise.all(
-  polylines.map((polyline) => clipper.clipPolyline(polyline, polygon)),
+  polylines.map((polyline) => multilineClip(polyline, polygon)),
 );
 
 console.log(result2);
@@ -655,14 +661,14 @@ polygon.forEach((ring) => {
   ctx.stroke();
 });
 
-ctx.strokeStyle = 'red';
+ctx.strokeStyle = 'rgba(255, 0, 0, 0.45)';
 
-lines.forEach((line) => {
-  ctx.beginPath();
-  ctx.moveTo(line[0].X, line[0].Y);
-  ctx.lineTo(line[1].X, line[1].Y);
-  ctx.stroke();
-});
+// lines.forEach((line) => {
+//   ctx.beginPath();
+//   ctx.moveTo(line[0].X, line[0].Y);
+//   ctx.lineTo(line[1].X, line[1].Y);
+//   ctx.stroke();
+// });
 
 polylines.forEach((polyline) => {
   polyline.forEach((pt, i, arr) => {
@@ -680,13 +686,13 @@ polylines.forEach((polyline) => {
 
 ctx.strokeStyle = 'yellow';
 
-result.forEach((line) => {
-  ctx.beginPath();
-  ctx.moveTo(line[0].X, line[0].Y);
-  ctx.lineTo(line[1].X, line[1].Y);
-  ctx.closePath();
-  ctx.stroke();
-});
+// result.forEach((line) => {
+//   ctx.beginPath();
+//   ctx.moveTo(line[0].X, line[0].Y);
+//   ctx.lineTo(line[1].X, line[1].Y);
+//   ctx.closePath();
+//   ctx.stroke();
+// });
 
 result2.forEach((polylines) => {
   polylines.forEach((polyline) => {
