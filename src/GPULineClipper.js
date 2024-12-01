@@ -1,20 +1,15 @@
 import shader from './lineClip.wgsl?raw';
-import polylineShader from './polylineClip.wgsl?raw';
 
 export class GPULineClipper {
   #device = null;
   #pipeline = null;
   #lineShaderModule = null;
-  #polylineShaderModule = null;
 
   constructor(device, maxIntersectionsPerLine = 128) {
     this.#device = device;
     this.maxIntersectionsPerLine = maxIntersectionsPerLine;
     this.#lineShaderModule = this.#device.createShaderModule({
       code: shader,
-    });
-    this.#polylineShaderModule = this.#device.createShaderModule({
-      code: polylineShader,
     });
   }
 
@@ -40,102 +35,6 @@ export class GPULineClipper {
     buffer.unmap();
 
     return buffer;
-  }
-
-  async clipPolyline(polyline, polygon) {
-    const vertices = polyline.flatMap(({ X, Y }) => [X, Y]);
-    const verticesArray = new Float32Array(vertices);
-    const verticesBuffer = this.#device.createBuffer({
-      size: verticesArray.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-      mappedAtCreation: true,
-    });
-    new Float32Array(verticesBuffer.getMappedRange()).set(verticesArray);
-    verticesBuffer.unmap();
-
-    const edgeData = new Float32Array(
-      GPULineClipper.#convertPolygonToEdges(polygon),
-    );
-    const edgeBuffer = this.#createMappedStorageCopyDataBuffer(edgeData);
-
-    const maxPoints = vertices.length * edgeData.length * 3;
-    const clippedPolylineBuffer = this.#device.createBuffer({
-      size: maxPoints * 4 * Float32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-      label: 'clippedFragmentsBuffer',
-    });
-
-    const readClippedPolylineBuffer = this.#device.createBuffer({
-      size: clippedPolylineBuffer.size,
-      usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-      label: 'readClippedPolylineBuffer',
-    });
-
-    const bindGroupLayout = this.#device.createBindGroupLayout({
-      entries: [
-        {
-          binding: 0,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: 'read-only-storage' },
-        },
-        {
-          binding: 1,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: 'read-only-storage' },
-        },
-        {
-          binding: 2,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: 'storage' },
-        },
-      ],
-    });
-
-    this.#pipeline = this.#device.createComputePipeline({
-      layout: this.#device.createPipelineLayout({
-        bindGroupLayouts: [bindGroupLayout],
-      }),
-
-      compute: {
-        module: this.#polylineShaderModule,
-        entryPoint: 'main',
-      },
-    });
-
-    const bindGroup = this.#device.createBindGroup({
-      layout: this.#pipeline.getBindGroupLayout(0),
-      entries: [
-        { binding: 0, resource: { buffer: verticesBuffer } },
-        { binding: 1, resource: { buffer: edgeBuffer } },
-        { binding: 2, resource: { buffer: clippedPolylineBuffer } },
-      ],
-    });
-
-    // Dispatch
-    const commandEncoder = this.#device.createCommandEncoder();
-    const passEncoder = commandEncoder.beginComputePass();
-    passEncoder.setPipeline(this.#pipeline);
-    passEncoder.setBindGroup(0, bindGroup);
-    passEncoder.dispatchWorkgroups(1);
-    passEncoder.end();
-    commandEncoder.copyBufferToBuffer(
-      clippedPolylineBuffer,
-      0,
-      readClippedPolylineBuffer,
-      0,
-      clippedPolylineBuffer.size,
-    );
-    this.#device.queue.submit([commandEncoder.finish()]);
-
-    await readClippedPolylineBuffer.mapAsync(GPUMapMode.READ);
-    const clippedPolylineData = new Float32Array(
-      readClippedPolylineBuffer.getMappedRange(),
-    );
-    const clippedData = parseClippedPolyline(clippedPolylineData);
-
-    readClippedPolylineBuffer.unmap();
-
-    return clippedData;
   }
 
   async clipLines(lines, polygon) {
