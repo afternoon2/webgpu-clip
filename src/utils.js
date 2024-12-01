@@ -23,22 +23,22 @@ export function createMappedStorageCopyDataBuffer(data, device) {
 }
 
 export function parseClippedPolyline(buffer, rows, cols) {
-  const SENTINEL = [-1.0, -1.0]; // Define the sentinel value
-  const polylines = []; // Output list of clipped polylines
+  const polylines = [];
 
   for (let row = 0; row < rows; row++) {
-    const rowOffset = row * cols; // Calculate the start index of the row
-    let currentPolyline = []; // Temporary storage for the current polyline
+    const rowOffset = row * cols;
+    let currentPolyline = [];
 
     for (let col = 0; col < cols; col++) {
       const index = rowOffset + col;
 
-      const x = buffer[index * 4 + 0]; // Read X coordinate
-      const y = buffer[index * 4 + 1]; // Read Y coordinate
-      const sentinelFlag = buffer[index * 4 + 2]; // Check sentinel flag
+      const X = buffer[index * 4 + 0];
+      const Y = buffer[index * 4 + 1];
+      const S = buffer[index * 4 + 2];
+      const P = buffer[index * 4 + 3];
 
-      if (![x, y, sentinelFlag, buffer[index * 4 + 3]].every((v) => v === 0)) {
-        if (sentinelFlag === -1.0) {
+      if (![X, Y, S, P].every((v) => v === 0)) {
+        if (S === -1.0) {
           // Sentinel indicates the end of the current polyline
           if (currentPolyline.length > 0) {
             polylines.push(currentPolyline);
@@ -46,7 +46,7 @@ export function parseClippedPolyline(buffer, rows, cols) {
           }
         } else {
           // Add the point to the current polyline
-          currentPolyline.push({ X: x, Y: y });
+          currentPolyline.push({ X, Y });
         }
       }
     }
