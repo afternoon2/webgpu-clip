@@ -127,11 +127,13 @@ export function setupMultilineClip(device) {
 
     await readBuffer.mapAsync(GPUMapMode.READ);
     const clippedData = new Float32Array(readBuffer.getMappedRange());
+
     const parsedClippedData = parseClippedPolyline(
       clippedData,
       numSegments,
-      maxClippedPolylinesPerSegment,
+      cols * numSegments,
     );
+    console.log(parsedClippedData);
 
     return parsedClippedData;
   };
