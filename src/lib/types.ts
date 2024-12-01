@@ -6,6 +6,6 @@ export type Polyline = [Point, Point, ...Point[]];
 
 export type PolygonRing = [Point, Point, Point, ...Point[]];
 
-export type Polygon = PolygonRing[];
+export type Polygon = [PolygonRing, ...PolygonRing[]];
 
 export type PolylineCollection = Polyline[];

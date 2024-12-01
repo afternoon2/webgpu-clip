@@ -15,7 +15,8 @@ This repository contains 2 functions, one for clipping lines (2-points long arra
 ```ts
 const lineClip = await setupLineClip();
 
-const polygon = [/* a polygon as a bunch of rings filled with points in { X: number, Y: number } format */]
+/* a polygon as a bunch of rings filled with points in { X: number, Y: number } format */
+const polygon = [
 const lines = [
   [{ X: 10, Y: 10 }, { 1000, 10 },]  /* etc. */
 ];
