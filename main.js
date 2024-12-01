@@ -7,7 +7,7 @@ const CANVAS_WIDTH = 1000;
 const CANVAS_HEIGHT = 1000;
 
 const device = await setup();
-const multilineClip = setupMultilineClip(device);
+const multilineClip = setupMultilineClip({ device });
 
 const polygon = [
   [
@@ -614,7 +614,6 @@ canvas.width = CANVAS_WIDTH;
 canvas.height = CANVAS_HEIGHT;
 
 const ctx = canvas.getContext('2d');
-// ctx.fillStyle = 'black';
 
 ctx.strokeStyle = 'white';
 

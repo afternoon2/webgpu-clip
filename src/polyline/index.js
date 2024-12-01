@@ -1,7 +1,10 @@
 import { convertPolygonToEdges, parseClippedPolyline } from '../utils';
 import code from './shader.wgsl?raw';
 
-export function setupMultilineClip(device) {
+export function setupMultilineClip({
+  device,
+  maxClippedPolylinesPerSegment = 64,
+}) {
   const module = device.createShaderModule({
     code,
   });
@@ -66,12 +69,10 @@ export function setupMultilineClip(device) {
     edgesBuffer.unmap();
 
     const numSegments = polyline.length - 1;
-    const maxVerticesPerClippedPolyline = 16;
-    const maxClippedPolylinesPerSegment = 64;
-    const cols = maxVerticesPerClippedPolyline * maxClippedPolylinesPerSegment;
+    const cols = maxClippedPolylinesPerSegment * 4;
 
     const clippedPolylineBuffer = device.createBuffer({
-      size: numSegments * cols * 4 * Float32Array.BYTES_PER_ELEMENT, // vec4f per slot
+      size: numSegments * cols * Float32Array.BYTES_PER_ELEMENT, // vec4f per slot
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
     });
 
@@ -133,7 +134,6 @@ export function setupMultilineClip(device) {
       numSegments,
       cols * numSegments,
     );
-    console.log(parsedClippedData);
 
     return parsedClippedData;
   };
