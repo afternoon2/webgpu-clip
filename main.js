@@ -1,5 +1,4 @@
 import './style.css';
-import { GPULineClipper } from './src/GPULineClipper.js';
 import { setup } from './src/setup.js';
 import { setupMultilineClip } from './src/polyline/index.js';
 
@@ -612,18 +611,20 @@ const polylines = [
     { X: 200, Y: 100 },
     { X: 300, Y: 300 },
     { X: 800, Y: 100 },
-    // { X: 80, Y: 50 },
-    // { X: 180, Y: 350 },
-    // { X: 280, Y: 150 },
+    { X: 80, Y: 50 },
+    { X: 180, Y: 350 },
+    { X: 280, Y: 150 },
+    { X: 230, Y: 350 },
+    { X: 100, Y: 150 },
   ],
-  // [
-  //   { X: 300, Y: 100 },
-  //   { X: 400, Y: 100 },
-  // ],
-  // [
-  //   { X: 50, Y: 40 },
-  //   { X: 400, Y: 60 },
-  // ],
+  [
+    { X: 300, Y: 100 },
+    { X: 400, Y: 100 },
+  ],
+  [
+    { X: 50, Y: 40 },
+    { X: 400, Y: 60 },
+  ],
 ];
 
 // const result = await clipper.clipPolyline(polylines[0], polygon);
@@ -633,8 +634,6 @@ const polylines = [
 const result2 = await Promise.all(
   polylines.map((polyline) => multilineClip(polyline, polygon)),
 );
-
-console.log(result2);
 
 const canvas = document.querySelector('canvas');
 
