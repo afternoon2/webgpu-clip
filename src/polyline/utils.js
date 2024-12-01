@@ -10,18 +10,6 @@ export function convertPolygonToEdges(polygon) {
   return edges;
 }
 
-export function createMappedStorageCopyDataBuffer(data, device) {
-  const buffer = device.createBuffer({
-    size: data.byteLength,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-    mappedAtCreation: true,
-  });
-  new Float32Array(buffer.getMappedRange()).set(data);
-  buffer.unmap();
-
-  return buffer;
-}
-
 export function parseClippedPolyline(buffer, rows, cols) {
   const polylines = [];
 

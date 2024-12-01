@@ -1,13 +1,11 @@
 import './style.css';
-import { setup } from './src/setup.js';
 import { setupMultilineClip } from './src/polyline/index.js';
 import { polylines } from './src/data.js';
 
 const CANVAS_WIDTH = 1000;
 const CANVAS_HEIGHT = 1000;
 
-const device = await setup();
-const multilineClip = setupMultilineClip({ device });
+const multilineClip = await setupMultilineClip();
 
 const polygon = [
   [

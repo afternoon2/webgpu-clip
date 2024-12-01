@@ -1,12 +1,30 @@
-import { convertPolygonToEdges, parseClippedPolyline } from '../utils';
-import code from './shader.wgsl?raw';
+import { convertPolygonToEdges, parseClippedPolyline } from './utils';
+import { getShader } from './shader';
 
-export function setupMultilineClip({
-  device,
-  maxClippedPolylinesPerSegment = 64,
-}) {
+export async function setupMultilineClip(
+  {
+    workgroupSize,
+    maxClippedPolylinesPerSegment,
+    maxIntersectionsPerSegment,
+  } = {
+    workgroupSize: 64,
+    maxClippedPolylinesPerSegment: 64,
+    maxIntersectionsPerSegment: 32,
+  },
+) {
+  if (!navigator.gpu) {
+    throw new Error('WebGPU is not supported on this browser.');
+  }
+
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) {
+    throw new Error('Failed to get GPU adapter.');
+  }
+
+  const device = await adapter.requestDevice();
+
   const module = device.createShaderModule({
-    code,
+    code: getShader(workgroupSize, maxIntersectionsPerSegment),
   });
 
   const bindGroupLayout = device.createBindGroupLayout({
@@ -100,7 +118,6 @@ export function setupMultilineClip({
       ],
     });
 
-    const workgroupSize = 64; // Same as @workgroup_size in the shader
     const numWorkgroups = Math.ceil(numSegments / workgroupSize);
 
     const commandEncoder = device.createCommandEncoder();
