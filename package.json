@@ -5,16 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --c src/**/*.js",
     "format": "prettier --write ."
   },
   "devDependencies": {
+    "@webgpu/types": "^0.1.51",
     "eslint": "^9.15.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
     "prettier": "^3.3.3",
+    "typescript": "^5.7.2",
     "vite": "^5.4.10",
     "vite-plugin-eslint": "^1.8.1"
   }

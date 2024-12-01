@@ -1,9 +1,10 @@
-export const getShader = (
-    workgroupSize = 64,
-    maxIntersectionsPerSegment = 32,
-) => /* wgsl */ `
-@group(0) @binding(0) var<storage, read> vertices: array<vec2f>; // Input polyline vertices
-@group(0) @binding(1) var<storage, read> edges: array<vec4f>;    // Clipping polygon edges
+export function getShader(
+  workgroupSize: number,
+  maxIntersectionsPerSegment: number,
+): string {
+  return /* wgsl */ `
+@group(0) @binding(0) var<storage, read> vertices: array<vec2f>;
+@group(0) @binding(1) var<storage, read> edges: array<vec4f>;
 @group(0) @binding(2) var<storage, read_write> clippedPolylineBuffer: array<vec4f>;
 @group(0) @binding(3) var<uniform> maxClippedPolylinesPerSegment: u32;
 
@@ -190,3 +191,4 @@ fn main(@builtin(global_invocation_id) globalId: vec3<u32>) {
   }
 }
 `;
+}

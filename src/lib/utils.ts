@@ -1,4 +1,6 @@
-export function convertPolygonToEdges(polygon) {
+import { Polygon, PolylineCollection } from './types';
+
+export function convertPolygonToEdges(polygon: Polygon): number[] {
   const edges = [];
   for (const ring of polygon) {
     for (let i = 0; i < ring.length; i++) {
@@ -10,7 +12,11 @@ export function convertPolygonToEdges(polygon) {
   return edges;
 }
 
-export function parseClippedPolyline(buffer, rows, cols) {
+export function parseClippedPolyline(
+  buffer: Float32Array,
+  rows: number,
+  cols: number,
+): PolylineCollection {
   const polylines = [];
 
   for (let row = 0; row < rows; row++) {
@@ -45,5 +51,5 @@ export function parseClippedPolyline(buffer, rows, cols) {
     }
   }
 
-  return polylines;
+  return polylines as PolylineCollection;
 }

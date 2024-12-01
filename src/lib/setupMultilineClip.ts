@@ -1,24 +1,31 @@
+import { getShader } from './getShader';
+import { Polygon, Polyline, PolylineCollection } from './types';
 import { convertPolygonToEdges, parseClippedPolyline } from './utils';
-import { getShader } from './shader';
+
+export type SetupMultilineClipParams = {
+  workgroupSize: number;
+  maxClippedPolylinesPerSegment: number;
+  maxIntersectionsPerSegment: number;
+};
 
 export async function setupMultilineClip(
   {
     workgroupSize,
     maxClippedPolylinesPerSegment,
     maxIntersectionsPerSegment,
-  } = {
+  }: SetupMultilineClipParams = {
     workgroupSize: 64,
     maxClippedPolylinesPerSegment: 64,
     maxIntersectionsPerSegment: 32,
   },
 ) {
   if (!navigator.gpu) {
-    throw new Error('WebGPU is not supported on this browser.');
+    throw new Error('WebGPU is not supported on this browser');
   }
 
   const adapter = await navigator.gpu.requestAdapter();
   if (!adapter) {
-    throw new Error('Failed to get GPU adapter.');
+    throw new Error('Failed to get GPU adapter');
   }
 
   const device = await adapter.requestDevice();
@@ -63,7 +70,10 @@ export async function setupMultilineClip(
     },
   });
 
-  return async function (polyline, polygon) {
+  return async function clipPolyline(
+    polyline: Polyline,
+    polygon: Polygon,
+  ): Promise<PolylineCollection> {
     const verticesArray = new Float32Array(
       polyline.flatMap(({ X, Y }) => [X, Y]),
     );
@@ -75,7 +85,6 @@ export async function setupMultilineClip(
     new Float32Array(verticesBuffer.getMappedRange()).set(verticesArray);
     verticesBuffer.unmap();
 
-    // Flatten edges into a Float32Array of vec4f (start.x, start.y, end.x, end.y)
     const edges = convertPolygonToEdges(polygon);
     const edgesArray = new Float32Array(edges);
     const edgesBuffer = device.createBuffer({

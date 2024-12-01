@@ -1,4 +1,6 @@
-export const polygon = [
+import { Polygon, Polyline } from './lib';
+
+export const polygon: Polygon = [
   [
     { X: 28.18, Y: 205.95 },
     { X: 28.18, Y: 105.07 },
@@ -361,7 +363,7 @@ export const polygon = [
   ],
 ];
 
-export const polylines = [
+export const polylines: Polyline[] = [
   [
     { X: 115.54, Y: 216.41 },
     { X: 113.01, Y: 217.26 },
