@@ -25,61 +25,47 @@ fn lineIntersection(p1: vec2f, p2: vec2f, p3: vec2f, p4: vec2f) -> vec3f {
   return vec3f(-1.0, -1.0, 0.0); // No intersection
 }
 
-fn pointOnEdge(p: vec2f, p1: vec2f, p2: vec2f) -> bool {
-  let crossProduct = (p.y - p1.y) * (p2.x - p1.x) - (p.x - p1.x) * (p2.y - p1.y);
+// fn pointOnEdge(p: vec2f, p1: vec2f, p2: vec2f) -> bool {
+//   let crossProduct = (p.y - p1.y) * (p2.x - p1.x) - (p.x - p1.x) * (p2.y - p1.y);
 
-  // Collinearity check
-  if (abs(crossProduct) > 1e-6) {
-      return false; // Not on the edge
-  }
+//   // Collinearity check
+//   if (abs(crossProduct) > 1e-6) {
+//       return false; // Not on the edge
+//   }
 
-  // Check if the point is strictly between the edge bounds
-  let minX = min(p1.x, p2.x);
-  let maxX = max(p1.x, p2.x);
-  let minY = min(p1.y, p2.y);
-  let maxY = max(p1.y, p2.y);
+//   // Check if the point is strictly between the edge bounds
+//   let minX = min(p1.x, p2.x);
+//   let maxX = max(p1.x, p2.x);
+//   let minY = min(p1.y, p2.y);
+//   let maxY = max(p1.y, p2.y);
 
-  if (p.x < minX || p.x > maxX || p.y < minY || p.y > maxY) {
-      return false; // Outside the edge bounds
-  }
+//   if (p.x < minX || p.x > maxX || p.y < minY || p.y > maxY) {
+//       return false; // Outside the edge bounds
+//   }
 
-  return true; // Valid point on edge
-}
+//   return true; // Valid point on edge
+// }
 
-fn isPointInsidePolygon(testPoint: vec2f) -> bool {
-  var windingNum = 0;
+
+fn isPointInsidePolygon(point: vec2f) -> bool {
+  var leftNodes = 0;
 
   for (var i = 0u; i < arrayLength(&edges); i = i + 1u) {
     let edge = edges[i];
-    let p1 = edge.xy; // Start point of edge
-    let p2 = edge.zw; // End point of edge
+    let start = edge.xy;
+    let end = edge.zw;
 
-    // Check if testPoint is exactly on the edge
-    if (pointOnEdge(testPoint, p1, p2)) {
-        return true; // Consider points on edges as inside the polygon
+    if ((start.y <= point.y && end.y > point.y) || (start.y > point.y && end.y <= point.y)) {
+      let slope = (end.x - start.x) / (end.y - start.y);
+      let intersectX = start.x + (point.y - start.y) * slope;
+
+      if (point.x < intersectX) {
+        leftNodes = leftNodes + 1;
+      }
     }
+  }
 
-    if (p1.y <= testPoint.y) {
-        // Upward crossing
-        if (p2.y > testPoint.y) {
-            let isLeft = (p2.x - p1.x) * (testPoint.y - p1.y) - (testPoint.x - p1.x) * (p2.y - p1.y);
-            if (isLeft > 0.0) {
-                windingNum = windingNum + 1;
-            }
-        }
-    } else {
-        // Downward crossing
-        if (p2.y <= testPoint.y) {
-            let isLeft = (p2.x - p1.x) * (testPoint.y - p1.y) - (testPoint.x - p1.x) * (p2.y - p1.y);
-            if (isLeft < 0.0) {
-                windingNum = windingNum - 1;
-            }
-        }
-    }
-}
-
-  // If the winding number is non-zero, the point is inside the polygon.
-  return windingNum != 0;
+  return (leftNodes % 2) != 0;
 }
 
 fn addPoint(point: vec2f, rowOffset: u32) {
@@ -93,8 +79,8 @@ fn addSentinel(rowOffset: u32) {
 }
 
 @compute @workgroup_size(64)
-fn main(@builtin(global_invocation_id) globalId: vec3<u32>, @builtin(local_invocation_id) localId: vec3<u32>) {
-  let threadIndex = localId.x;
+fn main(@builtin(global_invocation_id) globalId: vec3<u32>) {
+  let threadIndex = globalId.x;
 
   if (threadIndex >= arrayLength(&vertices) - 1u) {
     return; // No segment to process
