@@ -1,6 +1,6 @@
 export const getShader = (
-  workgroupSize = 64,
-  maxIntersectionsPerSegment = 32,
+    workgroupSize = 64,
+    maxIntersectionsPerSegment = 32,
 ) => /* wgsl */ `
 @group(0) @binding(0) var<storage, read> vertices: array<vec2f>; // Input polyline vertices
 @group(0) @binding(1) var<storage, read> edges: array<vec4f>;    // Clipping polygon edges
@@ -34,7 +34,7 @@ fn pointOnEdge(p: vec2f, p1: vec2f, p2: vec2f) -> bool {
 
   // Collinearity check
   if (abs(crossProduct) > 1e-6) {
-      return false; // Not on the edge
+    return false; // Not on the edge
   }
 
   // Check if the point is strictly between the edge bounds
@@ -44,7 +44,7 @@ fn pointOnEdge(p: vec2f, p1: vec2f, p2: vec2f) -> bool {
   let maxY = max(p1.y, p2.y);
 
   if (p.x < minX || p.x > maxX || p.y < minY || p.y > maxY) {
-      return false; // Outside the edge bounds
+    return false; // Outside the edge bounds
   }
 
   return true; // Valid point on edge
@@ -64,21 +64,21 @@ fn isPointInsidePolygon(testPoint: vec2f) -> bool {
     }
 
     if (p1.y <= testPoint.y) {
-        // Upward crossing
-        if (p2.y > testPoint.y) {
-            let isLeft = (p2.x - p1.x) * (testPoint.y - p1.y) - (testPoint.x - p1.x) * (p2.y - p1.y);
-            if (isLeft > 0.0) {
-                windingNum = windingNum + 1;
-            }
+      // Upward crossing
+      if (p2.y > testPoint.y) {
+        let isLeft = (p2.x - p1.x) * (testPoint.y - p1.y) - (testPoint.x - p1.x) * (p2.y - p1.y);
+        if (isLeft > 0.0) {
+          windingNum = windingNum + 1;
         }
+      }
     } else {
         // Downward crossing
         if (p2.y <= testPoint.y) {
-            let isLeft = (p2.x - p1.x) * (testPoint.y - p1.y) - (testPoint.x - p1.x) * (p2.y - p1.y);
-            if (isLeft < 0.0) {
-                windingNum = windingNum - 1;
-            }
+        let isLeft = (p2.x - p1.x) * (testPoint.y - p1.y) - (testPoint.x - p1.x) * (p2.y - p1.y);
+        if (isLeft < 0.0) {
+          windingNum = windingNum - 1;
         }
+      }
     }
 }
   // If the winding number is non-zero, the point is inside the polygon.
