@@ -8,15 +8,17 @@ Clipping lines and polylines on CPU is feasible, but might be slow, especially w
 
 This repository contains 2 functions, one for clipping lines (2-points long arrays), which is useful for fast shape filling with color. The second one is for complex polylines, such as patterns that should intersect a given shape.
 
-**Both functions are not fully tested and might produce incorrect result**
+**Both functions are not fully tested and might produce incorrect results**
 
 ### Line clipping
 
 ```ts
 const lineClip = await setupLineClip();
 
-/* a polygon as a bunch of rings filled with points in { X: number, Y: number } format */
 const polygon = [
+  /* a polygon as a bunch of rings filled with points in { X: number, Y: number } format */
+];
+
 const lines = [
   [{ X: 10, Y: 10 }, { 1000, 10 },]  /* etc. */
 ];
@@ -71,8 +73,6 @@ result.forEach((line) => {
 });
 ```
 
-The function takes an array of 2-points-long lines and a polygon as params and returns an array of clipped lines in return.
-
 ### Polyline clipping
 
 ```ts
@@ -90,9 +90,7 @@ const polyline = [
 
 const multilineClip = await setupMultilineClip();
 
-const result = await Promise.all(
-  polylines.map((polyline) => multilineClip(polyline, polygon)),
-);
+const result = await multilineClip(polyline, polygon));
 
 const canvas = document.querySelector('canvas') as HTMLCanvasElement;
 
@@ -151,8 +149,6 @@ result.forEach((polylines) => {
   });
 });
 ```
-
-The function takes an array of connected points and a polygon as params and returns an array of clipped polylines in return.
 
 ### Point format
 
