@@ -120,7 +120,7 @@ export async function setupLineClip(
     const clippedLinesData = new Float32Array(
       readClippedLinesBuffer.getMappedRange(),
     );
-    const clippedLines = [];
+    const clippedLines: Line[] = [];
     for (let i = 0; i < clippedLinesData.length; i += 4) {
       clippedLines.push([
         { X: clippedLinesData[i], Y: clippedLinesData[i + 1] },
@@ -131,6 +131,6 @@ export async function setupLineClip(
 
     return clippedLines.filter(
       (line) => !line.every((pt) => pt.X === 0 && pt.Y === 0),
-    ) as Line[];
+    );
   };
 }

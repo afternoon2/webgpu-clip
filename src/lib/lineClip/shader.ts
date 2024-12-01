@@ -24,31 +24,31 @@ fn lineIntersection(p1: vec2f, p2: vec2f, p3: vec2f, p4: vec2f) -> vec3f {
   return vec3f(1.0, -1.0, 0.0); // No intersection
 }
 fn isPointInsidePolygon(testPoint: vec2<f32>) -> bool {
-    var leftNodes = 0;
-    var rightNodes = 0;
+  var leftNodes = 0;
+  var rightNodes = 0;
 
-    for (var i = 0u; i < arrayLength(&edges); i = i + 1u) {
-        let edge = edges[i];
+  for (var i = 0u; i < arrayLength(&edges); i = i + 1u) {
+    let edge = edges[i];
 
-        // Check if the edge crosses the Y threshold of the test point
-        if ((edge.y <= testPoint.y && edge.w > testPoint.y) || 
-            (edge.y > testPoint.y && edge.w <= testPoint.y)) {
-            
-            // Calculate the X-coordinate of the intersection
-            let slope = (edge.z - edge.x) / (edge.z - edge.y);
-            let intersectX = edge.x + (testPoint.y - edge.y) * slope;
+    // Check if the edge crosses the Y threshold of the test point
+    if ((edge.y <= testPoint.y && edge.w > testPoint.y) || 
+      (edge.y > testPoint.y && edge.w <= testPoint.y)) {
+      
+      // Calculate the X-coordinate of the intersection
+      let slope = (edge.z - edge.x) / (edge.z - edge.y);
+      let intersectX = edge.x + (testPoint.y - edge.y) * slope;
 
-            // Count nodes on the left or right side
-            if (intersectX < testPoint.x) {
-                leftNodes = leftNodes + 1;
-            } else {
-                rightNodes = rightNodes + 1;
-            }
-        }
+      // Count nodes on the left or right side
+      if (intersectX < testPoint.x) {
+        leftNodes = leftNodes + 1;
+      } else {
+        rightNodes = rightNodes + 1;
+      }
     }
+  }
 
-    // Determine if the point is inside the polygon
-    return (leftNodes % 2 != 0) && (rightNodes % 2 != 0);
+  // Determine if the point is inside the polygon
+  return (leftNodes % 2 != 0) && (rightNodes % 2 != 0);
 }
 
 @compute @workgroup_size(1)
