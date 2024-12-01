@@ -1,8 +1,13 @@
 import { getShader } from './getShader';
-import { Polygon, Polyline, PolylineCollection } from './types';
-import { convertPolygonToEdges, parseClippedPolyline } from './utils';
+import { Polygon, Polyline, PolylineCollection } from '../types';
+import {
+  convertPolygonToEdges,
+  getGPUAdapter,
+  parseClippedPolyline,
+} from '../utils';
 
 export type SetupMultilineClipParams = {
+  deviceInstance?: GPUDevice;
   workgroupSize: number;
   maxClippedPolylinesPerSegment: number;
   maxIntersectionsPerSegment: number;
@@ -10,6 +15,7 @@ export type SetupMultilineClipParams = {
 
 export async function setupMultilineClip(
   {
+    deviceInstance,
     workgroupSize,
     maxClippedPolylinesPerSegment,
     maxIntersectionsPerSegment,
@@ -19,16 +25,14 @@ export async function setupMultilineClip(
     maxIntersectionsPerSegment: 32,
   },
 ) {
-  if (!navigator.gpu) {
-    throw new Error('WebGPU is not supported on this browser');
-  }
+  let device;
 
-  const adapter = await navigator.gpu.requestAdapter();
-  if (!adapter) {
-    throw new Error('Failed to get GPU adapter');
+  if (deviceInstance) {
+    device = deviceInstance;
+  } else {
+    const adapter = await getGPUAdapter();
+    device = await adapter.requestDevice();
   }
-
-  const device = await adapter.requestDevice();
 
   const module = device.createShaderModule({
     code: getShader(workgroupSize, maxIntersectionsPerSegment),

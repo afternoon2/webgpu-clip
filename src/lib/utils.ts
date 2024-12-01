@@ -53,3 +53,17 @@ export function parseClippedPolyline(
 
   return polylines as PolylineCollection;
 }
+
+export async function getGPUAdapter(): Promise<GPUAdapter> {
+  if (!navigator.gpu) {
+    throw new Error('WebGPU is not supported on this browser');
+  }
+
+  const adapter = await navigator.gpu.requestAdapter();
+
+  if (!adapter) {
+    throw new Error('Failed to get GPU adapter');
+  }
+
+  return adapter;
+}
