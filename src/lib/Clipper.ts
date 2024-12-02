@@ -1,6 +1,6 @@
 import { Line, Polygon, Polyline } from './types';
 
-export abstract class Clipper<T extends Polyline | Line[]> {
+export abstract class Clipper<T extends Polyline | Line> {
   protected edgesBuffer: GPUBuffer;
   protected maxIntersectionsPerSegment: number = 32;
   protected bindGroupLayout: GPUBindGroupLayout;
@@ -38,7 +38,7 @@ export abstract class Clipper<T extends Polyline | Line[]> {
     });
   }
 
-  abstract clip(target: T): Promise<T[]>;
+  abstract clip(target: T extends Line ? T[] : T): Promise<T[]>;
 
   protected static convertPolygonToEdges(polygon: Polygon) {
     const edges = [];
