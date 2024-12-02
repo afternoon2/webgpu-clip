@@ -56,7 +56,7 @@ export class PolylineClipper extends Clipper<Polyline> {
 
   async clip(polyline: Polyline): Promise<Polyline[]> {
     const verticesArray = new Float32Array(
-      polyline.flatMap(({ X, Y }) => [X, Y]),
+      PolylineClipper.flattenPointList(polyline),
     );
     const verticesBuffer = this.device.createBuffer({
       size: verticesArray.byteLength,
@@ -65,15 +65,6 @@ export class PolylineClipper extends Clipper<Polyline> {
     });
     new Float32Array(verticesBuffer.getMappedRange()).set(verticesArray);
     verticesBuffer.unmap();
-
-    const edgesArray = new Float32Array(this.edges);
-    const edgesBuffer = this.device.createBuffer({
-      size: edgesArray.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-      mappedAtCreation: true,
-    });
-    new Float32Array(edgesBuffer.getMappedRange()).set(edgesArray);
-    edgesBuffer.unmap();
 
     const numSegments = polyline.length - 1;
     const cols = this.maxClippedPolylinesPerSegment * 4;
@@ -98,7 +89,7 @@ export class PolylineClipper extends Clipper<Polyline> {
       layout: this.pipeline.getBindGroupLayout(0),
       entries: [
         { binding: 0, resource: { buffer: verticesBuffer } },
-        { binding: 1, resource: { buffer: edgesBuffer } },
+        { binding: 1, resource: { buffer: this.edgesBuffer } },
         { binding: 2, resource: { buffer: clippedPolylineBuffer } },
         {
           binding: 3,

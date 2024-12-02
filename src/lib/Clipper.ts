@@ -1,7 +1,7 @@
 import { Line, Polygon, Polyline } from './types';
 
 export abstract class Clipper<T extends Polyline | Line[]> {
-  protected edges: number[];
+  protected edgesBuffer: GPUBuffer;
   protected maxIntersectionsPerSegment: number = 32;
   protected bindGroupLayout: GPUBindGroupLayout;
   protected pipeline: GPUComputePipeline;
@@ -12,7 +12,16 @@ export abstract class Clipper<T extends Polyline | Line[]> {
     shader: string,
     protected device: GPUDevice,
   ) {
-    this.edges = Clipper.convertPolygonToEdges(polygon);
+    const edgeData = new Float32Array(Clipper.convertPolygonToEdges(polygon));
+    this.edgesBuffer = this.device.createBuffer({
+      size: edgeData.byteLength,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+      mappedAtCreation: true,
+      label: 'edgesBuffer',
+    });
+    new Float32Array(this.edgesBuffer.getMappedRange()).set(edgeData);
+    this.edgesBuffer.unmap();
+
     this.bindGroupLayout = this.device.createBindGroupLayout({
       entries: layoutEntries,
     });
