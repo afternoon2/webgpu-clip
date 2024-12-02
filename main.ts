@@ -1,14 +1,28 @@
-import './style.css';
-import { setupMultilineClip } from './src/lib';
-import { polygon, polylines } from './src/data';
+import { Polyline, setupMultilineClip } from './src/lib';
+import { polygon } from './src/data';
 
 const CANVAS_WIDTH = 1000;
 const CANVAS_HEIGHT = 1000;
 
 const multilineClip = await setupMultilineClip();
 
+const sinusoid = Array.from({ length: 10 }, (_, i) => {
+  const amplitude = 50 + i * 10;
+  const frequency = 0.01 + i * 0.005;
+  const startX = 50;
+  const endX = 450;
+  const numPoints = 100;
+
+  const points = [];
+  for (let x = startX; x <= endX; x += (endX - startX) / numPoints) {
+    const y = 250 + amplitude * Math.sin(frequency * x); // Sinusoidal equation
+    points.push({ X: x, Y: y });
+  }
+  return points as Polyline;
+});
+
 const result = await Promise.all(
-  polylines.map((polyline) => multilineClip(polyline, polygon)),
+  sinusoid.map((polyline) => multilineClip(polyline, polygon)),
 );
 
 const canvas = document.querySelector('canvas') as HTMLCanvasElement;
@@ -35,7 +49,7 @@ polygon.forEach((ring) => {
 
 ctx.strokeStyle = 'rgba(255, 0, 0, 0.45)';
 
-polylines.forEach((polyline) => {
+sinusoid.forEach((polyline) => {
   polyline.forEach((pt, i, arr) => {
     if (i === 0) {
       ctx.beginPath();
@@ -51,9 +65,9 @@ polylines.forEach((polyline) => {
 
 ctx.strokeStyle = 'yellow';
 
-result.forEach((polylines) => {
-  polylines.forEach((polyline) => {
-    polyline.forEach((pt, i, arr) => {
+result.forEach((res) => {
+  res.forEach((p) => {
+    p.forEach((pt, i, arr) => {
       if (i === 0) {
         ctx.beginPath();
         ctx.moveTo(pt.X, pt.Y);

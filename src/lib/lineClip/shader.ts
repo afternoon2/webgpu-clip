@@ -23,6 +23,7 @@ fn lineIntersection(p1: vec2f, p2: vec2f, p3: vec2f, p4: vec2f) -> vec3f {
 
   return vec3f(1.0, -1.0, 0.0); // No intersection
 }
+
 fn isPointInsidePolygon(testPoint: vec2<f32>) -> bool {
   var leftNodes = 0;
   var rightNodes = 0;
