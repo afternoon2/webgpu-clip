@@ -2,6 +2,8 @@
 
 ## POC of (poly)line clipping using WebGPU's compute shaders
 
+![Demo image](public/demo.png "Title")
+
 Clipping lines and polylines is especially useful in pen plotter art, where, if you want to fill a shape with color, you need to hatch it with lines. In other words: to create a bunch of lines covering the bounding box of a polygon, and then to clip them.
 
 Clipping lines and polylines on CPU is feasible, but might be slow, especially when having many shapes to fill. That's why I created this POC.
