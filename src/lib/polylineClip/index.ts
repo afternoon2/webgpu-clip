@@ -2,7 +2,7 @@ import { getShader } from './getShader';
 import { Polygon, Polyline, PolylineCollection } from '../types';
 import {
   convertPolygonToEdges,
-  getGPUAdapter,
+  getGPUDevice,
   parseClippedPolyline,
 } from '../utils';
 
@@ -25,14 +25,7 @@ export async function setupMultilineClip(
     maxIntersectionsPerSegment: 32,
   },
 ) {
-  let device;
-
-  if (deviceInstance) {
-    device = deviceInstance;
-  } else {
-    const adapter = await getGPUAdapter();
-    device = await adapter.requestDevice();
-  }
+  const device = deviceInstance || (await getGPUDevice());
 
   const module = device.createShaderModule({
     code: getShader(workgroupSize, maxIntersectionsPerSegment),

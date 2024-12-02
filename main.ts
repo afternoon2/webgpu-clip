@@ -1,10 +1,19 @@
-import { Polyline, setupMultilineClip } from './src/lib';
+import { Polyline } from './src/lib';
 import { polygon } from './src/data';
+import { PolylineClipper } from './src/lib/polylineClip/PolylineClipper';
+import { getGPUDevice } from './src/lib/utils';
 
 const CANVAS_WIDTH = 1000;
 const CANVAS_HEIGHT = 1000;
 
-const multilineClip = await setupMultilineClip();
+const device = await getGPUDevice();
+const clipper = new PolylineClipper({
+  device,
+  polygon,
+  maxIntersectionsPerSegment: 32,
+  maxClippedPolylinesPerSegment: 128,
+  workgroupSize: 64,
+});
 
 const sinusoid = Array.from({ length: 10 }, (_, i) => {
   const amplitude = 50 + i * 10;
@@ -22,7 +31,7 @@ const sinusoid = Array.from({ length: 10 }, (_, i) => {
 });
 
 const result = await Promise.all(
-  sinusoid.map((polyline) => multilineClip(polyline, polygon)),
+  sinusoid.map((polyline) => clipper.clip(polyline)),
 );
 
 const canvas = document.querySelector('canvas') as HTMLCanvasElement;

@@ -1,5 +1,5 @@
 import { Line, Polygon } from '../types';
-import { convertPolygonToEdges, getGPUAdapter } from '../utils';
+import { convertPolygonToEdges, getGPUDevice } from '../utils';
 import { code } from './shader';
 
 export type SetupLineClipParams = {
@@ -12,14 +12,7 @@ export async function setupLineClip(
     maxIntersectionsPerLine: 128,
   },
 ) {
-  let device;
-
-  if (deviceInstance) {
-    device = deviceInstance;
-  } else {
-    const adapter = await getGPUAdapter();
-    device = await adapter.requestDevice();
-  }
+  const device = deviceInstance || (await getGPUDevice());
 
   const module = device.createShaderModule({
     code,
