@@ -7,15 +7,6 @@ import { LineClipper } from './src/lib/line';
 const CANVAS_WIDTH = 1000;
 const CANVAS_HEIGHT = 1000;
 
-const device = await getGPUDevice();
-
-const polylineClipper = new PolylineClipper({
-  device,
-  polygon,
-});
-
-const lineClipper = new LineClipper({ device, polygon });
-
 const sinusoid = Array.from({ length: 10 }, (_, i) => {
   const amplitude = 50 + i * 10;
   const frequency = 0.01 + i * 0.005;
@@ -50,9 +41,29 @@ const lines: Line[] = [
   ],
 ];
 
-const polylineResult = await polylineClipper.clip(sinusoid);
+const device = await getGPUDevice();
 
-const linesResult = await lineClipper.clip(lines);
+performance.mark('polylineClippingStart');
+const polylineClipper = new PolylineClipper({
+  device,
+  polygon,
+  workgroupSize: 64,
+});
+const polylineResult = await polylineClipper.clip(sinusoid);
+performance.mark('polylineClippingEnd');
+performance.measure(
+  'polylinesClipping',
+  'polylineClippingStart',
+  'polylineClippingEnd',
+);
+const [entry] = performance.getEntriesByName('polylinesClipping');
+
+console.log(
+  `Preprocessing, clipping, and postprocessing takes: ${entry.duration / 1000} sec`,
+);
+
+// const lineClipper = new LineClipper({ device, polygon });
+// const linesResult = await lineClipper.clip(lines);
 
 const canvas = document.querySelector('canvas') as HTMLCanvasElement;
 
@@ -92,17 +103,17 @@ sinusoid.forEach((polyline) => {
   });
 });
 
-lines.forEach((line) => {
-  line.forEach((pt, i) => {
-    if (i === 0) {
-      ctx.beginPath();
-      ctx.moveTo(pt.X, pt.Y);
-    } else {
-      ctx.lineTo(pt.X, pt.Y);
-      ctx.stroke();
-    }
-  });
-});
+// lines.forEach((line) => {
+//   line.forEach((pt, i) => {
+//     if (i === 0) {
+//       ctx.beginPath();
+//       ctx.moveTo(pt.X, pt.Y);
+//     } else {
+//       ctx.lineTo(pt.X, pt.Y);
+//       ctx.stroke();
+//     }
+//   });
+// });
 
 ctx.strokeStyle = 'yellow';
 
@@ -120,14 +131,14 @@ polylineResult.forEach((polyline) => {
   });
 });
 
-linesResult.forEach((line) => {
-  line.forEach((pt, i) => {
-    if (i === 0) {
-      ctx.beginPath();
-      ctx.moveTo(pt.X, pt.Y);
-    } else {
-      ctx.lineTo(pt.X, pt.Y);
-      ctx.stroke();
-    }
-  });
-});
+// linesResult.forEach((line) => {
+//   line.forEach((pt, i) => {
+//     if (i === 0) {
+//       ctx.beginPath();
+//       ctx.moveTo(pt.X, pt.Y);
+//     } else {
+//       ctx.lineTo(pt.X, pt.Y);
+//       ctx.stroke();
+//     }
+//   });
+// });

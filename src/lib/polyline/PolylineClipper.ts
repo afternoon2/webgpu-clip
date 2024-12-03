@@ -54,6 +54,9 @@ export class PolylineClipper extends Clipper<Polyline> {
   }
 
   async clip(polylines: Polyline[]): Promise<Polyline[]> {
+    performance.mark('rawClippingStart');
+    console.log(`Polylines: ${polylines.length}`);
+
     const vertices = polylines.flatMap((polyline, polylineIndex) =>
       polyline.flatMap((pt, pointIndex) => [
         pt.X,
@@ -62,6 +65,7 @@ export class PolylineClipper extends Clipper<Polyline> {
         pointIndex,
       ]),
     );
+    console.log(`Vertices: ${vertices.length / 4}`);
     const verticesArray = new Float32Array(vertices);
     const verticesBuffer = this.device.createBuffer({
       size: verticesArray.byteLength,
@@ -75,6 +79,7 @@ export class PolylineClipper extends Clipper<Polyline> {
       sum += polyline.length - 1;
       return sum;
     }, 0);
+    console.log(`Segments: ${numSegments}`);
     const cols = this.maxClippedVerticesPerSegment * 4;
 
     const clippedPolylineBuffer = this.device.createBuffer({
@@ -133,6 +138,11 @@ export class PolylineClipper extends Clipper<Polyline> {
 
     await readBuffer.mapAsync(GPUMapMode.READ);
     const clippedData = new Float32Array(readBuffer.getMappedRange());
+    performance.mark('rawClippingEnd');
+    performance.measure('rawClipping', 'rawClippingStart', 'rawClippingEnd');
+    console.log(
+      `Raw clipping takes ${performance.getEntriesByName('rawClipping')[0].duration / 1000} sec`,
+    );
 
     const parsedClippedData = PolylineClipper.parseClippedPolyline(
       clippedData,
