@@ -41,6 +41,15 @@ export class LineClipper extends Clipper<Line> {
   }: LineClipperConfig) {
     super(polygon, BIND_GROUP_LAYOUT_ENTRIES, code, device);
     this.maxIntersectionsPerLine = maxIntersectionsPerLine;
+    const edgeData = new Float32Array(Clipper.convertPolygonToEdges(polygon));
+    this.edgesBuffer = this.device.createBuffer({
+      size: edgeData.byteLength,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+      mappedAtCreation: true,
+      label: 'edgesBuffer',
+    });
+    new Float32Array(this.edgesBuffer.getMappedRange()).set(edgeData);
+    this.edgesBuffer.unmap();
   }
 
   async clip(lines: Line[]): Promise<Line[]> {

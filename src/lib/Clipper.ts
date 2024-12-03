@@ -38,7 +38,7 @@ export abstract class Clipper<T extends Polyline | Line> {
     });
   }
 
-  abstract clip(target: T extends Line ? T[] : T): Promise<T[]>;
+  abstract clip(target: T[]): Promise<T[]>;
 
   protected static convertPolygonToEdges(polygon: Polygon) {
     const edges = [];

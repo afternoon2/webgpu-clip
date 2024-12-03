@@ -5,9 +5,9 @@ import { getShader } from './getShader';
 export type PolylineClipperConfig = {
   device: GPUDevice;
   polygon: Polygon;
-  maxIntersectionsPerSegment: number;
-  maxClippedPolylinesPerSegment: number;
-  workgroupSize: number;
+  maxIntersectionsPerSegment?: number;
+  maxClippedVerticesPerSegment?: number;
+  workgroupSize?: number;
 };
 
 const BIND_GROUP_LAYOUT_ENTRIES: GPUBindGroupLayoutEntry[] = [
@@ -34,31 +34,35 @@ const BIND_GROUP_LAYOUT_ENTRIES: GPUBindGroupLayoutEntry[] = [
 ];
 
 export class PolylineClipper extends Clipper<Polyline> {
-  private maxClippedPolylinesPerSegment: number;
+  private maxClippedVerticesPerSegment: number;
   private workgroupSize: number;
 
   constructor({
     device,
     polygon,
     maxIntersectionsPerSegment,
-    maxClippedPolylinesPerSegment,
+    maxClippedVerticesPerSegment,
     workgroupSize,
   }: PolylineClipperConfig) {
-    super(
-      polygon,
-      BIND_GROUP_LAYOUT_ENTRIES,
-      getShader(workgroupSize, maxIntersectionsPerSegment),
-      device,
-    );
-    this.maxIntersectionsPerSegment = maxIntersectionsPerSegment;
-    this.workgroupSize = workgroupSize;
-    this.maxClippedPolylinesPerSegment = maxClippedPolylinesPerSegment;
+    const ws = workgroupSize ?? 64;
+    const mi = maxIntersectionsPerSegment ?? 32;
+    const mc = maxClippedVerticesPerSegment ?? 32;
+    super(polygon, BIND_GROUP_LAYOUT_ENTRIES, getShader(ws, mi), device);
+    this.maxIntersectionsPerSegment = mi;
+    this.workgroupSize = ws;
+    this.maxClippedVerticesPerSegment = mc;
   }
 
-  async clip(polyline: Polyline): Promise<Polyline[]> {
-    const verticesArray = new Float32Array(
-      PolylineClipper.flattenPointList(polyline),
+  async clip(polylines: Polyline[]): Promise<Polyline[]> {
+    const vertices = polylines.flatMap((polyline, polylineIndex) =>
+      polyline.flatMap((pt, pointIndex) => [
+        pt.X,
+        pt.Y,
+        polylineIndex,
+        pointIndex,
+      ]),
     );
+    const verticesArray = new Float32Array(vertices);
     const verticesBuffer = this.device.createBuffer({
       size: verticesArray.byteLength,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
@@ -67,11 +71,14 @@ export class PolylineClipper extends Clipper<Polyline> {
     new Float32Array(verticesBuffer.getMappedRange()).set(verticesArray);
     verticesBuffer.unmap();
 
-    const numSegments = polyline.length - 1;
-    const cols = this.maxClippedPolylinesPerSegment * 4;
+    const numSegments = polylines.reduce((sum, polyline) => {
+      sum += polyline.length - 1;
+      return sum;
+    }, 0);
+    const cols = this.maxClippedVerticesPerSegment * 4;
 
     const clippedPolylineBuffer = this.device.createBuffer({
-      size: numSegments * cols * Float32Array.BYTES_PER_ELEMENT, // vec4f per slot
+      size: numSegments * cols * Float32Array.BYTES_PER_ELEMENT,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
     });
 
@@ -83,7 +90,7 @@ export class PolylineClipper extends Clipper<Polyline> {
     this.device.queue.writeBuffer(
       maxClippedPolylinePerSegmentBuffer,
       0,
-      new Uint32Array([this.maxClippedPolylinesPerSegment]),
+      new Uint32Array([this.maxClippedVerticesPerSegment]),
     );
 
     const bindGroup = this.device.createBindGroup({
@@ -132,6 +139,7 @@ export class PolylineClipper extends Clipper<Polyline> {
       numSegments,
       cols * numSegments,
     );
+    readBuffer.unmap();
 
     return parsedClippedData;
   }
@@ -147,13 +155,13 @@ export class PolylineClipper extends Clipper<Polyline> {
       const rowOffset = row * cols;
       let currentPolyline = [];
 
-      for (let col = 0; col < cols; col++) {
+      for (let col = 0; col < cols; col += 4) {
         const index = rowOffset + col;
 
-        const X = buffer[index * 4 + 0];
-        const Y = buffer[index * 4 + 1];
-        const S = buffer[index * 4 + 2];
-        const P = buffer[index * 4 + 3];
+        const X = buffer[index + 0];
+        const Y = buffer[index + 1];
+        const S = buffer[index + 2];
+        const P = buffer[index + 3];
 
         if (![X, Y, S, P].every((v) => v === 0)) {
           if (S === -1.0) {

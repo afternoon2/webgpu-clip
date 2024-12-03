@@ -8,12 +8,10 @@ const CANVAS_WIDTH = 1000;
 const CANVAS_HEIGHT = 1000;
 
 const device = await getGPUDevice();
+
 const polylineClipper = new PolylineClipper({
   device,
   polygon,
-  maxIntersectionsPerSegment: 32,
-  maxClippedPolylinesPerSegment: 128,
-  workgroupSize: 64,
 });
 
 const lineClipper = new LineClipper({ device, polygon });
@@ -52,9 +50,7 @@ const lines: Line[] = [
   ],
 ];
 
-const polylineResult = await Promise.all(
-  sinusoid.map((polyline) => polylineClipper.clip(polyline)),
-);
+const polylineResult = await polylineClipper.clip(sinusoid);
 
 const linesResult = await lineClipper.clip(lines);
 
@@ -110,23 +106,20 @@ lines.forEach((line) => {
 
 ctx.strokeStyle = 'yellow';
 
-polylineResult.forEach((res) => {
-  res.forEach((p) => {
-    p.forEach((pt, i, arr) => {
-      if (i === 0) {
-        ctx.beginPath();
-        ctx.moveTo(pt.X, pt.Y);
-      } else if (i === arr.length - 1) {
-        ctx.lineTo(pt.X, pt.Y);
-        ctx.stroke();
-      } else {
-        ctx.lineTo(pt.X, pt.Y);
-      }
-    });
+polylineResult.forEach((polyline) => {
+  polyline.forEach((pt, i, arr) => {
+    if (i === 0) {
+      ctx.beginPath();
+      ctx.moveTo(pt.X, pt.Y);
+    } else if (i === arr.length - 1) {
+      ctx.lineTo(pt.X, pt.Y);
+      ctx.stroke();
+    } else {
+      ctx.lineTo(pt.X, pt.Y);
+    }
   });
 });
 
-console.log(linesResult);
 linesResult.forEach((line) => {
   line.forEach((pt, i) => {
     if (i === 0) {
