@@ -1,3 +1,3 @@
-export * from './lineClip';
-export * from './polylineClip';
+export * from './line';
+export * from './polyline';
 export * from './types';

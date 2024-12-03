@@ -1,10 +1,20 @@
-import { Polyline, setupMultilineClip } from './src/lib';
+import { Line, Polyline } from './src/lib';
 import { polygon } from './src/data';
+import { PolylineClipper } from './src/lib/polyline';
+import { getGPUDevice } from './src/lib/utils';
+import { LineClipper } from './src/lib/line';
 
 const CANVAS_WIDTH = 1000;
 const CANVAS_HEIGHT = 1000;
 
-const multilineClip = await setupMultilineClip();
+const device = await getGPUDevice();
+
+const polylineClipper = new PolylineClipper({
+  device,
+  polygon,
+});
+
+const lineClipper = new LineClipper({ device, polygon });
 
 const sinusoid = Array.from({ length: 10 }, (_, i) => {
   const amplitude = 50 + i * 10;
@@ -21,9 +31,28 @@ const sinusoid = Array.from({ length: 10 }, (_, i) => {
   return points as Polyline;
 });
 
-const result = await Promise.all(
-  sinusoid.map((polyline) => multilineClip(polyline, polygon)),
-);
+const lines: Line[] = [
+  [
+    { X: 140, Y: 200 },
+    { X: 200, Y: 200 },
+  ],
+  [
+    { X: 10, Y: 210 },
+    { X: 1000, Y: 210 },
+  ],
+  [
+    { X: 10, Y: 220 },
+    { X: 800, Y: 220 },
+  ],
+  [
+    { X: 10, Y: 240 },
+    { X: 1000, Y: 240 },
+  ],
+];
+
+const polylineResult = await polylineClipper.clip(sinusoid);
+
+const linesResult = await lineClipper.clip(lines);
 
 const canvas = document.querySelector('canvas') as HTMLCanvasElement;
 
@@ -63,21 +92,42 @@ sinusoid.forEach((polyline) => {
   });
 });
 
+lines.forEach((line) => {
+  line.forEach((pt, i) => {
+    if (i === 0) {
+      ctx.beginPath();
+      ctx.moveTo(pt.X, pt.Y);
+    } else {
+      ctx.lineTo(pt.X, pt.Y);
+      ctx.stroke();
+    }
+  });
+});
+
 ctx.strokeStyle = 'yellow';
 
-result.forEach((res) => {
-  res.forEach((p) => {
-    p.forEach((pt, i, arr) => {
-      if (i === 0) {
-        ctx.beginPath();
-        ctx.moveTo(pt.X, pt.Y);
-      } else if (i === arr.length - 1) {
-        ctx.lineTo(pt.X, pt.Y);
-        // ctx.closePath();
-        ctx.stroke();
-      } else {
-        ctx.lineTo(pt.X, pt.Y);
-      }
-    });
+polylineResult.forEach((polyline) => {
+  polyline.forEach((pt, i, arr) => {
+    if (i === 0) {
+      ctx.beginPath();
+      ctx.moveTo(pt.X, pt.Y);
+    } else if (i === arr.length - 1) {
+      ctx.lineTo(pt.X, pt.Y);
+      ctx.stroke();
+    } else {
+      ctx.lineTo(pt.X, pt.Y);
+    }
+  });
+});
+
+linesResult.forEach((line) => {
+  line.forEach((pt, i) => {
+    if (i === 0) {
+      ctx.beginPath();
+      ctx.moveTo(pt.X, pt.Y);
+    } else {
+      ctx.lineTo(pt.X, pt.Y);
+      ctx.stroke();
+    }
   });
 });

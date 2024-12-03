@@ -3,12 +3,13 @@ export function getShader(
   maxIntersectionsPerSegment: number,
 ): string {
   return /* wgsl */ `
-@group(0) @binding(0) var<storage, read> vertices: array<vec2f>;
+@group(0) @binding(0) var<storage, read> vertices: array<vec4f>;
 @group(0) @binding(1) var<storage, read> edges: array<vec4f>;
 @group(0) @binding(2) var<storage, read_write> clippedPolylineBuffer: array<vec4f>;
-@group(0) @binding(3) var<uniform> maxClippedPolylinesPerSegment: u32;
+@group(0) @binding(3) var<uniform> maxClippedVerticesPerSegment: u32;
 
-var<private> col: u32;
+var<private> bufferIndex: u32;
+var<private> polylineIndex: u32;
 
 fn lineIntersection(p1: vec2f, p2: vec2f, p3: vec2f, p4: vec2f) -> vec3f {
   let s1 = vec2<f32>(p2.x - p1.x, p2.y - p1.y);
@@ -47,14 +48,14 @@ fn isPointInsidePolygon(point: vec2f) -> bool {
   return (leftNodes % 2) != 0;
 }
 
-fn addPoint(point: vec2f, rowOffset: u32) {
-  clippedPolylineBuffer[rowOffset + col] = vec4f(point, 1.0, 0.0);
-  col = col + 1u;
+fn addPoint(point: vec2f) {
+  clippedPolylineBuffer[bufferIndex] = vec4f(point, f32(polylineIndex), 0.0);
+  bufferIndex = bufferIndex + 1u;
 }
 
-fn addSentinel(rowOffset: u32) {
-  clippedPolylineBuffer[rowOffset + col] = vec4f(-1.0, -1.0, -1.0, 0.0);
-  col = col + 1u;
+fn addSentinel() {
+  clippedPolylineBuffer[bufferIndex] = vec4f(-1.0, -1.0, -1.0, -1.0);
+  bufferIndex = bufferIndex + 1u;
 }
 
 @compute @workgroup_size(${workgroupSize})
@@ -64,19 +65,27 @@ fn main(@builtin(global_invocation_id) globalId: vec3<u32>) {
   if (threadIndex >= arrayLength(&vertices) - 1u) {
     return; // No segment to process
   }
+  
+  let p1 = vertices[threadIndex - 1u];
+  let p2 = vertices[threadIndex];
 
-  let p1 = vertices[threadIndex];
-  let p2 = vertices[threadIndex + 1u];
+  polylineIndex = u32(p2.z);
 
-  let p1Inside = isPointInsidePolygon(p1);
-  let p2Inside = isPointInsidePolygon(p2);
+  let pointIndex = u32(p2.w);
+
+  if (pointIndex == 0u) {
+    return;
+  }
+
+  let p1Inside = isPointInsidePolygon(p1.xy);
+  let p2Inside = isPointInsidePolygon(p2.xy);
 
   var intersections: array<vec2f, ${maxIntersectionsPerSegment}>;
   var intersectionCount = 0u;
 
   for (var j = 0u; j < arrayLength(&edges); j = j + 1u) {
     let edge = edges[j];
-    let intersection = lineIntersection(p1, p2, edge.xy, edge.zw);
+    let intersection = lineIntersection(p1.xy, p2.xy, edge.xy, edge.zw);
 
     if (intersection.z == 1.0) {
       intersections[intersectionCount] = intersection.xy;
@@ -87,7 +96,7 @@ fn main(@builtin(global_invocation_id) globalId: vec3<u32>) {
   if (intersectionCount > 1u) {
     for (var k = 0u; k < intersectionCount - 1u; k = k + 1u) {
       for (var l = k + 1u; l < intersectionCount; l = l + 1u) {
-        if (distance(p1, intersections[l]) < distance(p1, intersections[k])) {
+        if (distance(p1.xy, intersections[l]) < distance(p1.xy, intersections[k])) {
           let temp = intersections[k];
           intersections[k] = intersections[l];
           intersections[l] = temp;
@@ -96,58 +105,57 @@ fn main(@builtin(global_invocation_id) globalId: vec3<u32>) {
     }
   }
 
-  let rowOffset = threadIndex * maxClippedPolylinesPerSegment;
-  col = 0u;
+  bufferIndex = threadIndex * maxClippedVerticesPerSegment;
 
   if (p1Inside && p2Inside) {
-    addPoint(p1, rowOffset);
+    addPoint(p1.xy);
 
     if (intersectionCount == 0u) {
-      addPoint(p2, rowOffset);
+      addPoint(p2.xy);
     } else if (intersectionCount > 1u) {
-      addPoint(intersections[0u], rowOffset);
-      addSentinel(rowOffset);
+      addPoint(intersections[0u]);
+      addSentinel();
 
       for (var i = 1u; i < intersectionCount - 1u; i = i + 2u) {
-        addPoint(intersections[i], rowOffset);
-        addPoint(intersections[i + 1u], rowOffset);
-        addSentinel(rowOffset);
+        addPoint(intersections[i]);
+        addPoint(intersections[i + 1u]);
+        addSentinel();
       }
 
-      addPoint(intersections[intersectionCount - 1u], rowOffset);
-      addPoint(p2, rowOffset);
+      addPoint(intersections[intersectionCount - 1u]);
+      addPoint(p2.xy);
     }
   } else if (p1Inside && !p2Inside) {
-    addPoint(p1, rowOffset);
-    addPoint(intersections[0], rowOffset);
-    addSentinel(rowOffset);
+    addPoint(p1.xy);
+    addPoint(intersections[0]);
+    addSentinel();
 
     if (intersectionCount > 1u) {
       for (var i = 1u; i < intersectionCount; i = i + 2u) {
-        addPoint(intersections[i], rowOffset);
-        addPoint(intersections[i + 1u], rowOffset);
-        addSentinel(rowOffset);
+        addPoint(intersections[i]);
+        addPoint(intersections[i + 1u]);
+        addSentinel();
       }
     }
   } else if (!p1Inside && p2Inside) {
     if (intersectionCount == 1u) {
-      addPoint(intersections[0], rowOffset);
-      addPoint(p2, rowOffset);
+      addPoint(intersections[0]);
+      addPoint(p2.xy);
     } else {
       for (var i = 0u; i < intersectionCount - 1u; i = i + 2u) {
-        addPoint(intersections[i], rowOffset);
-        addPoint(intersections[i + 1u], rowOffset);
-        addSentinel(rowOffset);
+        addPoint(intersections[i]);
+        addPoint(intersections[i + 1u]);
+        addSentinel();
       }
-      addPoint(intersections[intersectionCount - 1u], rowOffset);
-      addPoint(p2, rowOffset);
-      addSentinel(rowOffset);
+      addPoint(intersections[intersectionCount - 1u]);
+      addPoint(p2.xy);
+      addSentinel();
     }
   } else {
     for (var i = 0u; i + 1u < intersectionCount; i = i + 2u) {
-      addPoint(intersections[i], rowOffset);
-      addPoint(intersections[i + 1u], rowOffset);
-      addSentinel(rowOffset);
+      addPoint(intersections[i]);
+      addPoint(intersections[i + 1u]);
+      addSentinel();
     }
   }
 }
