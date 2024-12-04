@@ -1,7 +1,7 @@
 import { Line, Polyline } from './src/lib';
 import { polygon } from './src/data';
 import { PolylineClipper } from './src/lib/polyline';
-import { getGPUDevice } from './src/lib/utils';
+import { getGPUDevice } from './src/lib/getGPUDevice';
 import { LineClipper } from './src/lib/line';
 
 const CANVAS_WIDTH = 1000;
