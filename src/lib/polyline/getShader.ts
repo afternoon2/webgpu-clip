@@ -8,6 +8,7 @@ export function getShader(
 @group(0) @binding(2) var<storage, read_write> clippedPolylineBuffer: array<vec4f>;
 @group(0) @binding(3) var<uniform> maxClippedVerticesPerSegment: u32;
 
+var<private> threadIndex: u32;
 var<private> bufferIndex: u32;
 var<private> polylineIndex: u32;
 
@@ -51,16 +52,20 @@ fn isPointInsidePolygon(point: vec2f) -> bool {
 fn addPoint(point: vec2f) {
   clippedPolylineBuffer[bufferIndex] = vec4f(point, f32(polylineIndex), 0.0);
   bufferIndex = bufferIndex + 1u;
+  let segmentStart = threadIndex * maxClippedVerticesPerSegment;
+  clippedPolylineBuffer[segmentStart].w = f32(bufferIndex - segmentStart);
 }
 
 fn addSentinel() {
   clippedPolylineBuffer[bufferIndex] = vec4f(-1.0, -1.0, -1.0, -1.0);
   bufferIndex = bufferIndex + 1u;
+  let segmentStart = threadIndex * maxClippedVerticesPerSegment;
+  clippedPolylineBuffer[segmentStart].w = f32(bufferIndex - segmentStart);
 }
 
 @compute @workgroup_size(${workgroupSize})
 fn main(@builtin(global_invocation_id) globalId: vec3<u32>) {
-  let threadIndex = globalId.x;
+  threadIndex = globalId.x;
 
   if (threadIndex >= arrayLength(&vertices) - 1u) {
     return; // No segment to process
@@ -69,7 +74,7 @@ fn main(@builtin(global_invocation_id) globalId: vec3<u32>) {
   let p1 = vertices[threadIndex - 1u];
   let p2 = vertices[threadIndex];
 
-  polylineIndex = u32(p2.z);
+  polylineIndex = u32(p1.z);
 
   let pointIndex = u32(p2.w);
 
@@ -112,7 +117,8 @@ fn main(@builtin(global_invocation_id) globalId: vec3<u32>) {
 
     if (intersectionCount == 0u) {
       addPoint(p2.xy);
-    } else if (intersectionCount > 1u) {
+    } 
+    else  {
       addPoint(intersections[0u]);
       addSentinel();
 

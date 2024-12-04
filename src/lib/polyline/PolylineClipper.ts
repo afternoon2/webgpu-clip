@@ -46,7 +46,7 @@ export class PolylineClipper extends Clipper<Polyline> {
   }: PolylineClipperConfig) {
     const ws = workgroupSize ?? 64;
     const mi = maxIntersectionsPerSegment ?? 32;
-    const mc = maxClippedVerticesPerSegment ?? 32;
+    const mc = maxClippedVerticesPerSegment ?? 64;
     super(polygon, BIND_GROUP_LAYOUT_ENTRIES, getShader(ws, mi), device);
     this.maxIntersectionsPerSegment = mi;
     this.workgroupSize = ws;
@@ -143,35 +143,34 @@ export class PolylineClipper extends Clipper<Polyline> {
     console.log(
       `Raw clipping takes ${performance.getEntriesByName('rawClipping')[0].duration / 1000} sec`,
     );
-
-    const parsedClippedData = PolylineClipper.parseClippedPolyline(
+    const parsedClippedData = this.parseClippedPolyline(
       clippedData,
       numSegments,
-      cols * numSegments,
     );
     readBuffer.unmap();
+
+    console.log(parsedClippedData.length);
 
     return parsedClippedData;
   }
 
-  private static parseClippedPolyline(
+  private parseClippedPolyline(
     buffer: Float32Array,
     rows: number,
-    cols: number,
   ): PolylineCollection {
     const polylines = [];
 
-    for (let row = 0; row < rows; row++) {
-      const rowOffset = row * cols;
+    for (let row = 0; row < rows; row += 1) {
+      const rowOffset = row * this.maxClippedVerticesPerSegment;
+      const segmentLength = buffer[rowOffset * 4 + 3];
       let currentPolyline = [];
-
-      for (let col = 0; col < cols; col += 4) {
+      for (let col = 0; col < segmentLength; col += 1) {
         const index = rowOffset + col;
 
-        const X = buffer[index + 0];
-        const Y = buffer[index + 1];
-        const S = buffer[index + 2];
-        const P = buffer[index + 3];
+        const X = buffer[index * 4 + 0];
+        const Y = buffer[index * 4 + 1];
+        const S = buffer[index * 4 + 2];
+        const P = buffer[index * 4 + 3];
 
         if (![X, Y, S, P].every((v) => v === 0)) {
           if (S === -1.0) {
@@ -181,8 +180,10 @@ export class PolylineClipper extends Clipper<Polyline> {
               currentPolyline = [];
             }
           } else {
-            // Add the point to the current polyline
-            currentPolyline.push({ X, Y });
+            if (X !== undefined && Y !== undefined) {
+              // Add the point to the current polyline
+              currentPolyline.push({ X, Y });
+            }
           }
         }
       }
