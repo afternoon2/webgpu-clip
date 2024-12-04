@@ -32,6 +32,40 @@ fn lineIntersection(p1: vec2f, p2: vec2f, p3: vec2f, p4: vec2f) -> vec3f {
   return vec3f(-1.0, -1.0, 0.0); // No intersection
 }
 
+struct LineIntersectionsData {
+  intersections: array<vec2f, ${maxIntersectionsPerSegment}>,
+  intersectionCount: u32
+}
+
+fn getLineIntersectionsData(p1: vec4f, p2: vec4f) -> LineIntersectionsData {
+  var intersections: array<vec2f, ${maxIntersectionsPerSegment}>;
+  var intersectionCount = 0u;
+
+  for (var j = 0u; j < arrayLength(&edges); j = j + 1u) {
+    let edge = edges[j];
+    let intersection = lineIntersection(p1.xy, p2.xy, edge.xy, edge.zw);
+
+    if (intersection.z == 1.0) {
+      intersections[intersectionCount] = intersection.xy;
+      intersectionCount = intersectionCount + 1u;
+    }
+  }
+
+  if (intersectionCount > 1u) {
+    for (var k = 0u; k < intersectionCount - 1u; k = k + 1u) {
+      for (var l = k + 1u; l < intersectionCount; l = l + 1u) {
+        if (distance(p1.xy, intersections[l]) < distance(p1.xy, intersections[k])) {
+          let temp = intersections[k];
+          intersections[k] = intersections[l];
+          intersections[l] = temp;
+        }
+      }
+    }
+  }
+
+  return LineIntersectionsData(intersections, intersectionCount);
+}
+
 fn isPointInsidePolygon(point: vec2f) -> bool {
   var leftNodes = 0;
   for (var i = 0u; i < arrayLength(&edges); i = i + 1u) {
@@ -85,30 +119,9 @@ fn main(@builtin(global_invocation_id) globalId: vec3<u32>) {
   let p1Inside = isPointInsidePolygon(p1.xy);
   let p2Inside = isPointInsidePolygon(p2.xy);
 
-  var intersections: array<vec2f, ${maxIntersectionsPerSegment}>;
-  var intersectionCount = 0u;
-
-  for (var j = 0u; j < arrayLength(&edges); j = j + 1u) {
-    let edge = edges[j];
-    let intersection = lineIntersection(p1.xy, p2.xy, edge.xy, edge.zw);
-
-    if (intersection.z == 1.0) {
-      intersections[intersectionCount] = intersection.xy;
-      intersectionCount = intersectionCount + 1u;
-    }
-  }
-
-  if (intersectionCount > 1u) {
-    for (var k = 0u; k < intersectionCount - 1u; k = k + 1u) {
-      for (var l = k + 1u; l < intersectionCount; l = l + 1u) {
-        if (distance(p1.xy, intersections[l]) < distance(p1.xy, intersections[k])) {
-          let temp = intersections[k];
-          intersections[k] = intersections[l];
-          intersections[l] = temp;
-        }
-      }
-    }
-  }
+  let intersectionsData = getLineIntersectionsData(p1, p2);
+  let intersections = intersectionsData.intersections;
+  let intersectionCount = intersectionsData.intersectionCount;
 
   bufferIndex = threadIndex * maxClippedVerticesPerSegment;
 
