@@ -101,7 +101,7 @@ fn addSentinel() {
 fn main(@builtin(global_invocation_id) globalId: vec3<u32>) {
   threadIndex = globalId.x;
 
-  if (threadIndex >= arrayLength(&vertices) - 1u) {
+  if (threadIndex >= arrayLength(&vertices) - 1u || threadIndex == 0u) {
     return; // No segment to process
   }
   
@@ -110,11 +110,6 @@ fn main(@builtin(global_invocation_id) globalId: vec3<u32>) {
 
   polylineIndex = u32(p1.z);
 
-  let pointIndex = u32(p2.w);
-
-  if (pointIndex == 0u) {
-    return;
-  }
 
   let p1Inside = isPointInsidePolygon(p1.xy);
   let p2Inside = isPointInsidePolygon(p2.xy);
