@@ -107,6 +107,10 @@ fn main(@builtin(global_invocation_id) globalId: vec3<u32>) {
   let p1 = vertices[threadIndex - 1u];
   let p2 = vertices[threadIndex];
 
+  if (u32(p1.z) != u32(p2.z)) {
+    return; // Skip processing, p1 and p2 are from different polylines
+  }
+
   let p1Inside = isPointInsidePolygon(p1.xy);
   let p2Inside = isPointInsidePolygon(p2.xy);
 

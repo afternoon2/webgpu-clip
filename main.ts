@@ -7,7 +7,7 @@ import { LineClipper } from './src/lib/line';
 const CANVAS_WIDTH = 1000;
 const CANVAS_HEIGHT = 1000;
 
-const sinusoid = Array.from({ length: 1 }, (_, i) => {
+const sinusoid = Array.from({ length: 10 }, (_, i) => {
   const amplitude = 50 + i * 10;
   const frequency = 0.01 + i * 0.005;
   const startX = 50;
