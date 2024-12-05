@@ -149,7 +149,7 @@ export class PolylineClipper extends Clipper<Polyline> {
     );
     readBuffer.unmap();
 
-    console.log(parsedClippedData.length);
+    console.log(parsedClippedData);
 
     return parsedClippedData;
   }
@@ -194,6 +194,28 @@ export class PolylineClipper extends Clipper<Polyline> {
       }
     }
 
-    return polylines as PolylineCollection;
+    return polylines.reduce((collection, polyline, index, arr) => {
+      if (index === 0) {
+        collection.push(polyline as Polyline);
+        return collection;
+      }
+      const prev = arr[index - 1][1];
+      const curr = polyline[0];
+
+      if (PolylineClipper.arePointsEqual(prev, curr)) {
+        collection[collection.length - 1].push(...polyline.slice(1));
+      } else {
+        collection.push(polyline as Polyline);
+      }
+      return collection;
+    }, [] as PolylineCollection);
+  }
+
+  private static arePointsEqual(
+    p1: { X: number; Y: number },
+    p2: { X: number; Y: number },
+  ): boolean {
+    const EPSILON = 1e-6; // Tolerance for floating-point comparison
+    return Math.abs(p1.X - p2.X) < EPSILON && Math.abs(p1.Y - p2.Y) < EPSILON;
   }
 }
