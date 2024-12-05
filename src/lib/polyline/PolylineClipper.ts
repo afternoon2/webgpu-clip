@@ -194,18 +194,19 @@ export class PolylineClipper extends Clipper<Polyline> {
       }
     }
 
-    return polylines.reduce((collection, polyline, index, arr) => {
+    return polylines.reduce((collection, polyline, index) => {
       if (index === 0) {
         collection.push(polyline as Polyline);
-        return collection;
-      }
-      const prev = arr[index - 1][1];
-      const curr = polyline[0];
-
-      if (PolylineClipper.arePointsEqual(prev, curr)) {
-        collection[collection.length - 1].push(...polyline.slice(1));
       } else {
-        collection.push(polyline as Polyline);
+        const currentClippedPolyline = collection[collection.length - 1];
+        const prev = currentClippedPolyline[currentClippedPolyline.length - 1];
+        const curr = polyline[0];
+
+        if (PolylineClipper.arePointsEqual(prev, curr)) {
+          currentClippedPolyline.push(...polyline.slice(1));
+        } else {
+          collection.push(polyline as Polyline);
+        }
       }
       return collection;
     }, [] as PolylineCollection);

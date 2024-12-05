@@ -10,7 +10,6 @@ export function getShader(
 
 var<private> threadIndex: u32;
 var<private> bufferIndex: u32;
-var<private> polylineIndex: u32;
 
 fn lineIntersection(p1: vec2f, p2: vec2f, p3: vec2f, p4: vec2f) -> vec3f {
   let s1 = vec2<f32>(p2.x - p1.x, p2.y - p1.y);
@@ -84,7 +83,7 @@ fn isPointInsidePolygon(point: vec2f) -> bool {
 }
 
 fn addPoint(point: vec2f) {
-  clippedPolylineBuffer[bufferIndex] = vec4f(point, f32(polylineIndex), 0.0);
+  clippedPolylineBuffer[bufferIndex] = vec4f(point, 0.0, 0.0);
   bufferIndex = bufferIndex + 1u;
   let segmentStart = threadIndex * maxClippedVerticesPerSegment;
   clippedPolylineBuffer[segmentStart].w = f32(bufferIndex - segmentStart);
@@ -107,9 +106,6 @@ fn main(@builtin(global_invocation_id) globalId: vec3<u32>) {
   
   let p1 = vertices[threadIndex - 1u];
   let p2 = vertices[threadIndex];
-
-  polylineIndex = u32(p1.z);
-
 
   let p1Inside = isPointInsidePolygon(p1.xy);
   let p2Inside = isPointInsidePolygon(p2.xy);
