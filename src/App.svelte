@@ -1,19 +1,28 @@
 <script lang="ts">
+  import Example from './Example.svelte';
+  import { getGPUDevice } from './lib/getGPUDevice';
+  import LinesExample from './LinesExample.svelte';
+  import PolylinesExample from './PolylinesExample.svelte';
+
+  const device = getGPUDevice();
 </script>
 
 <div class="container">
   <header>
-    <h1>Line & Polyline Clipping With Compute Shaders</h1>
+    <h1>Line & Polyline Clipping With WebGPU Compute Shaders</h1>
     <hr />
   </header>
   <main>
-    <fieldset>
-      <legend>Lines</legend>
-    </fieldset>
-
-    <fieldset>
-      <legend>Polylines</legend>
-    </fieldset>
+    {#await device}
+      <p>Loading</p>
+    {:then device}
+      <Example title="Lines">
+        <LinesExample {device} />
+      </Example>
+      <Example title="Polylines">
+        <PolylinesExample {device} />
+      </Example>
+    {/await}
   </main>
 </div>
 
@@ -49,16 +58,8 @@
   main {
     width: 100%;
     display: flex;
-    flex-direction: column;
+    align-items: center;
     padding: 16px;
     box-sizing: border-box;
-
-    fieldset {
-      margin-bottom: 1rem;
-    }
-
-    fieldset > legend {
-      font-size: 13px;
-    }
   }
 </style>
