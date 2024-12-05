@@ -101,7 +101,7 @@ fn addSentinel() {
 fn main(@builtin(global_invocation_id) globalId: vec3<u32>) {
   threadIndex = globalId.x;
 
-  if (threadIndex >= arrayLength(&vertices) - 1u || threadIndex == 0u) {
+  if (threadIndex == 0u || threadIndex >= arrayLength(&vertices) - 1u) {
     return; // No segment to process
   }
   
