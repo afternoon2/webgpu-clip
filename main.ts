@@ -115,20 +115,18 @@ sinusoid.forEach((polyline) => {
 //   });
 // });
 
-ctx.strokeStyle = 'yellow';
+ctx.strokeStyle = 'rgba(0, 245, 0)';
 
 polylineResult.forEach((polyline) => {
-  polyline.forEach((pt, i, arr) => {
+  polyline.forEach((pt, i) => {
     if (i === 0) {
       ctx.beginPath();
       ctx.moveTo(pt.X, pt.Y);
-    } else if (i === arr.length - 1) {
-      ctx.lineTo(pt.X, pt.Y);
-      ctx.stroke();
     } else {
       ctx.lineTo(pt.X, pt.Y);
     }
   });
+  ctx.stroke();
 });
 
 // linesResult.forEach((line) => {

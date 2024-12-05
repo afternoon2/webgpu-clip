@@ -8,8 +8,8 @@ export function getShader(
 @group(0) @binding(2) var<storage, read_write> clippedPolylineBuffer: array<vec4f>;
 @group(0) @binding(3) var<uniform> maxClippedVerticesPerSegment: u32;
 
+var<private> threadIndex: u32;
 var<private> bufferIndex: u32;
-var<private> polylineIndex: u32;
 
 fn lineIntersection(p1: vec2f, p2: vec2f, p3: vec2f, p4: vec2f) -> vec3f {
   let s1 = vec2<f32>(p2.x - p1.x, p2.y - p1.y);
@@ -31,55 +31,12 @@ fn lineIntersection(p1: vec2f, p2: vec2f, p3: vec2f, p4: vec2f) -> vec3f {
   return vec3f(-1.0, -1.0, 0.0); // No intersection
 }
 
-fn isPointInsidePolygon(point: vec2f) -> bool {
-  var leftNodes = 0;
-  for (var i = 0u; i < arrayLength(&edges); i = i + 1u) {
-    let edge = edges[i];
-    let start = edge.xy;
-    let end = edge.zw;
-    if ((start.y <= point.y && end.y > point.y) || (start.y > point.y && end.y <= point.y)) {
-      let slope = (end.x - start.x) / (end.y - start.y);
-      let intersectX = start.x + (point.y - start.y) * slope;
-      if (point.x < intersectX) {
-        leftNodes = leftNodes + 1;
-      }
-    }
-  }
-  return (leftNodes % 2) != 0;
+struct LineIntersectionsData {
+  intersections: array<vec2f, ${maxIntersectionsPerSegment}>,
+  intersectionCount: u32
 }
 
-fn addPoint(point: vec2f) {
-  clippedPolylineBuffer[bufferIndex] = vec4f(point, f32(polylineIndex), 0.0);
-  bufferIndex = bufferIndex + 1u;
-}
-
-fn addSentinel() {
-  clippedPolylineBuffer[bufferIndex] = vec4f(-1.0, -1.0, -1.0, -1.0);
-  bufferIndex = bufferIndex + 1u;
-}
-
-@compute @workgroup_size(${workgroupSize})
-fn main(@builtin(global_invocation_id) globalId: vec3<u32>) {
-  let threadIndex = globalId.x;
-
-  if (threadIndex >= arrayLength(&vertices) - 1u) {
-    return; // No segment to process
-  }
-  
-  let p1 = vertices[threadIndex - 1u];
-  let p2 = vertices[threadIndex];
-
-  polylineIndex = u32(p2.z);
-
-  let pointIndex = u32(p2.w);
-
-  if (pointIndex == 0u) {
-    return;
-  }
-
-  let p1Inside = isPointInsidePolygon(p1.xy);
-  let p2Inside = isPointInsidePolygon(p2.xy);
-
+fn getLineIntersectionsData(p1: vec4f, p2: vec4f) -> LineIntersectionsData {
   var intersections: array<vec2f, ${maxIntersectionsPerSegment}>;
   var intersectionCount = 0u;
 
@@ -105,6 +62,62 @@ fn main(@builtin(global_invocation_id) globalId: vec3<u32>) {
     }
   }
 
+  return LineIntersectionsData(intersections, intersectionCount);
+}
+
+fn isPointInsidePolygon(point: vec2f) -> bool {
+  var leftNodes = 0;
+  for (var i = 0u; i < arrayLength(&edges); i = i + 1u) {
+    let edge = edges[i];
+    let start = edge.xy;
+    let end = edge.zw;
+    if ((start.y <= point.y && end.y > point.y) || (start.y > point.y && end.y <= point.y)) {
+      let slope = (end.x - start.x) / (end.y - start.y);
+      let intersectX = start.x + (point.y - start.y) * slope;
+      if (point.x < intersectX) {
+        leftNodes = leftNodes + 1;
+      }
+    }
+  }
+  return (leftNodes % 2) != 0;
+}
+
+fn addPoint(point: vec2f) {
+  clippedPolylineBuffer[bufferIndex] = vec4f(point, 0.0, 0.0);
+  bufferIndex = bufferIndex + 1u;
+  let segmentStart = threadIndex * maxClippedVerticesPerSegment;
+  clippedPolylineBuffer[segmentStart].w = f32(bufferIndex - segmentStart);
+}
+
+fn addSentinel() {
+  clippedPolylineBuffer[bufferIndex] = vec4f(-1.0, -1.0, -1.0, -1.0);
+  bufferIndex = bufferIndex + 1u;
+  let segmentStart = threadIndex * maxClippedVerticesPerSegment;
+  clippedPolylineBuffer[segmentStart].w = f32(bufferIndex - segmentStart);
+}
+
+@compute @workgroup_size(${workgroupSize})
+fn main(@builtin(global_invocation_id) globalId: vec3<u32>) {
+  threadIndex = globalId.x;
+
+  if (threadIndex == 0u || threadIndex >= arrayLength(&vertices) - 1u) {
+    return; // No segment to process
+  }
+  
+  let p1 = vertices[threadIndex - 1u];
+  let p2 = vertices[threadIndex];
+
+  if (u32(p1.z) != u32(p2.z)) {
+    return; // Skip processing, p1 and p2 are from different polylines
+  }
+
+  let p1Inside = isPointInsidePolygon(p1.xy);
+  let p2Inside = isPointInsidePolygon(p2.xy);
+
+  let intersectionsData = getLineIntersectionsData(p1, p2);
+  let intersections = intersectionsData.intersections;
+  let intersectionCount = intersectionsData.intersectionCount;
+
   bufferIndex = threadIndex * maxClippedVerticesPerSegment;
 
   if (p1Inside && p2Inside) {
@@ -112,7 +125,8 @@ fn main(@builtin(global_invocation_id) globalId: vec3<u32>) {
 
     if (intersectionCount == 0u) {
       addPoint(p2.xy);
-    } else if (intersectionCount > 1u) {
+    } 
+    else  {
       addPoint(intersections[0u]);
       addSentinel();
 
