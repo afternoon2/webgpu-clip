@@ -149,8 +149,6 @@ export class PolylineClipper extends Clipper<Polyline> {
     );
     readBuffer.unmap();
 
-    console.log(parsedClippedData);
-
     return parsedClippedData;
   }
 
