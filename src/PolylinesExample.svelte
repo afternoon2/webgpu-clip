@@ -1,11 +1,13 @@
 <script lang="ts">
   import { polygon } from './polygon';
-  import { type Line, PolylineClipper, type Polyline } from './lib';
+  import { PolylineClipper, type Polyline } from './lib';
 
   const { device }: { device: GPUDevice } = $props();
 
   let canvas: HTMLCanvasElement;
   const canvasSize = 500;
+
+  let timing: number | null = $state(null);
 
   const sinusoid = Array.from({ length: 4 }, (_, i) => {
     const amplitude = 100 + i * 10;
@@ -21,30 +23,22 @@
     }
     return points as Polyline;
   });
-  const linesCount = 50;
-  const step = canvasSize / linesCount;
-  const lines: Line[] = new Array(linesCount).fill(null).map((_, index) => {
-    const x1 = 0;
-    const x2 = canvasSize;
 
-    return [
-      {
-        X: x1,
-        Y: index * step,
-      },
-      {
-        X: x2,
-        Y: index * step,
-      },
-    ];
-  });
-
+  performance.mark('PolylineClipperStart');
   const clipper = new PolylineClipper({ device, polygon });
 
   const load = async () => {
     if (canvas) {
       const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
       const result = await clipper.clip(sinusoid);
+      performance.mark('PolylineClipperEnd');
+      performance.measure(
+        'PolylineClipping',
+        'PolylineClipperStart',
+        'PolylineClipperEnd',
+      );
+      timing =
+        performance.getEntriesByName('PolylineClipping')[0].duration / 1000;
 
       ctx.strokeStyle = 'white';
 
@@ -113,4 +107,30 @@
   });
 </script>
 
-<canvas bind:this={canvas} width={canvasSize} height={canvasSize}></canvas>
+<div class="container">
+  <canvas bind:this={canvas} width={canvasSize} height={canvasSize}></canvas>
+  <div class="results">
+    {#if timing}
+      <p>
+        Clipping (instantiation, loading, clipping, and reading the results)
+        took <b>{timing.toFixed(4)} sec</b>
+      </p>
+    {/if}
+  </div>
+</div>
+
+<style>
+  .container {
+    display: flex;
+    flex-direction: column;
+  }
+
+  canvas {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .results {
+    display: flex;
+    flex-direction: column;
+  }
+</style>

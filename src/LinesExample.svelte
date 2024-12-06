@@ -25,12 +25,18 @@
     ];
   });
 
+  let timing: number | null = $state(null);
+
+  performance.mark('LineClipperStart');
   const clipper = new LineClipper({ device, polygon });
 
   const load = async () => {
     if (canvas) {
       const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
       const result = await clipper.clip(lines);
+      performance.mark('LineClipperEnd');
+      performance.measure('LineClipping', 'LineClipperStart', 'LineClipperEnd');
+      timing = performance.getEntriesByName('LineClipping')[0].duration / 1000;
 
       ctx.strokeStyle = 'white';
 
@@ -82,4 +88,30 @@
   });
 </script>
 
-<canvas bind:this={canvas} width={canvasSize} height={canvasSize}></canvas>
+<div class="container">
+  <canvas bind:this={canvas} width={canvasSize} height={canvasSize}></canvas>
+  <div class="results">
+    {#if timing}
+      <p>
+        Clipping (instantiation, loading, clipping, and reading the results)
+        took <b>{timing.toFixed(4)} sec</b>
+      </p>
+    {/if}
+  </div>
+</div>
+
+<style>
+  .container {
+    display: flex;
+    flex-direction: column;
+  }
+
+  canvas {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .results {
+    display: flex;
+    flex-direction: column;
+  }
+</style>

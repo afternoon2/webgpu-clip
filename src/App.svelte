@@ -16,10 +16,10 @@
     {#await device}
       <p>Loading</p>
     {:then device}
-      <Example title="Lines">
+      <Example title="LineClipper">
         <LinesExample {device} />
       </Example>
-      <Example title="Polylines">
+      <Example title="PolylineClipper">
         <PolylinesExample {device} />
       </Example>
     {/await}
