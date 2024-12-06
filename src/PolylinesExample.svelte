@@ -94,7 +94,6 @@
       });
 
       ctx.strokeStyle = 'rgba(0, 245, 0)';
-      ctx.lineWidth = 2;
 
       result.forEach((polyline) => {
         polyline.forEach((pt, i) => {
