@@ -15,8 +15,14 @@
     {#await device}
       <p>Loading</p>
     {:then device}
-      <LinesExample {device} />
-      <PolylinesExample {device} />
+      <div class="content">
+        <LinesExample {device} />
+        <PolylinesExample {device} />
+      </div>
+    {:catch error}
+      <div class="error">
+        <span>{error}</span>
+      </div>
     {/await}
   </main>
 </div>
@@ -52,10 +58,27 @@
 
   main {
     width: 100%;
-    max-width: 1100px;
     display: flex;
     align-items: center;
+    flex-direction: column;
     padding: 16px;
     box-sizing: border-box;
+  }
+
+  .content {
+    max-width: 1100px;
+    display: flex;
+  }
+
+  .error {
+    padding: 20px;
+    min-width: 120px;
+    background-color: #976060;
+    text-align: center;
+    color: #fcfcfc;
+    font-weight: bold;
+    border-radius: 10px;
+    margin-top: 10px;
+    margin-bottom: 10px;
   }
 </style>
