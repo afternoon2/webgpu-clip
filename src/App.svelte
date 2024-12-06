@@ -1,5 +1,4 @@
 <script lang="ts">
-  import Example from './Example.svelte';
   import { getGPUDevice } from './lib/getGPUDevice';
   import LinesExample from './LinesExample.svelte';
   import PolylinesExample from './PolylinesExample.svelte';

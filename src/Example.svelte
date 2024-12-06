@@ -30,7 +30,6 @@
         {@render children?.()}
       </div>
     </div>
-    {@render children?.()}
   </div>
 </fieldset>
 
