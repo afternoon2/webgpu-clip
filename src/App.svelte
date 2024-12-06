@@ -9,6 +9,9 @@
 <div class="container">
   <header>
     <h1>Line & Polyline Clipping With WebGPU Compute Shaders</h1>
+    <h4>
+      Both utilities are not fully tested and might produce incorrect results
+    </h4>
     <hr />
   </header>
   <main>
@@ -41,6 +44,10 @@
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  header {
+    text-align: center;
   }
 
   .container {

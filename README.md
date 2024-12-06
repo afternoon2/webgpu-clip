@@ -8,9 +8,9 @@ Clipping lines and polylines is especially useful in pen plotter art, where, if 
 
 Clipping lines and polylines on CPU is feasible, but might be slow, especially when having many shapes to fill. That's why I created this POC.
 
-This repository contains 2 functions, one for clipping lines (2-points long arrays), which is useful for fast shape filling with color. The second one is for complex polylines, such as patterns that intersect given shape.
+This repository contains 2 utility classes, one for clipping lines (2-points long arrays), which is useful for fast shape filling with color. The second one is for complex polylines, such as patterns that intersect given shape.
 
-**Both functions are not fully tested and might produce incorrect results**
+**Both utilities are not fully tested and might produce incorrect results**
 
 ### Line clipping
 

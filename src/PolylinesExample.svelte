@@ -19,7 +19,7 @@
   let timing: number | null = $state(null);
 
   const sinusoid = Array.from({ length: 10 }, (_, i) => {
-    const amplitude = 20 + i * 10;
+    const amplitude = 130 + i * 10;
     const frequency = 0.01 + i * 0.005;
     const startX = 0;
     const endX = canvasSize;
@@ -27,7 +27,7 @@
 
     const points = [];
     for (let x = startX; x <= endX; x += (endX - startX) / numPoints) {
-      const y = 150 + amplitude * Math.sin(frequency * x); // Sinusoidal equation
+      const y = 250 + amplitude * Math.sin(frequency * x); // Sinusoidal equation
       points.push({ X: x, Y: y });
     }
     return points as Polyline;
