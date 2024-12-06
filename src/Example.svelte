@@ -23,8 +23,8 @@
       <div class="results">
         {#if timing}
           <p>
-            Clipping (instantiation, loading, clipping, and reading the results)
-            took <b>{timing.toFixed(4)} sec</b>
+            Clipping (instantiation, loading, clipping, and reading the
+            results): <b>{timing.toFixed(4)} sec</b>
           </p>
         {/if}
         {@render children?.()}

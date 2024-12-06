@@ -16,15 +16,16 @@ fn lineIntersection(p1: vec2f, p2: vec2f, p3: vec2f, p4: vec2f) -> vec3f {
   let s2 = vec2<f32>(p4.x - p3.x, p4.y - p3.y);
 
   let denom = -s2.x * s1.y + s1.x * s2.y;
+  let epsilon = 1e-6;
 
-  if (abs(denom) < 1e-6) {
+  if (abs(denom) < epsilon) { // Adjust epsilon as needed
     return vec3f(-1.0, -1.0, 0.0); // No intersection
   }
 
   let s = (-s1.y * (p1.x - p3.x) + s1.x * (p1.y - p3.y)) / denom;
   let t = (s2.x * (p1.y - p3.y) - s2.y * (p1.x - p3.x)) / denom;
 
-  if (s >= 0.0 && s <= 1.0 && t >= 0.0 && t <= 1.0) {
+  if (s >= -epsilon && s <= 1.0 + 1e-6 && t >= -epsilon && t <= 1.0 + epsilon) {
     return vec3f(p1.x + t * s1.x, p1.y + t * s1.y, 1.0);
   }
 
