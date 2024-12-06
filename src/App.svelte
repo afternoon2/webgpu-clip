@@ -16,12 +16,8 @@
     {#await device}
       <p>Loading</p>
     {:then device}
-      <Example title="LineClipper">
-        <LinesExample {device} />
-      </Example>
-      <Example title="PolylineClipper">
-        <PolylinesExample {device} />
-      </Example>
+      <LinesExample {device} />
+      <PolylinesExample {device} />
     {/await}
   </main>
 </div>

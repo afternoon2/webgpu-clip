@@ -1,10 +1,11 @@
 <script lang="ts">
   import { polygon } from './polygon';
   import { PolylineClipper, type Polyline } from './lib';
+  import Example from './Example.svelte';
 
   const { device }: { device: GPUDevice } = $props();
 
-  let canvas: HTMLCanvasElement;
+  let canvas: HTMLCanvasElement = $state() as HTMLCanvasElement;
   const canvasSize = 500;
 
   let timing: number | null = $state(null);
@@ -107,30 +108,6 @@
   });
 </script>
 
-<div class="container">
-  <canvas bind:this={canvas} width={canvasSize} height={canvasSize}></canvas>
-  <div class="results">
-    {#if timing}
-      <p>
-        Clipping (instantiation, loading, clipping, and reading the results)
-        took <b>{timing.toFixed(4)} sec</b>
-      </p>
-    {/if}
-  </div>
-</div>
-
-<style>
-  .container {
-    display: flex;
-    flex-direction: column;
-  }
-
-  canvas {
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .results {
-    display: flex;
-    flex-direction: column;
-  }
-</style>
+<Example title="PolylineClipper" {timing} {canvasSize} bind:canvas>
+  <span></span>
+</Example>
