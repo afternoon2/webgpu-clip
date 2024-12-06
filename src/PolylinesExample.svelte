@@ -1,6 +1,6 @@
 <script lang="ts">
   import { polygon } from './polygon';
-  import { PolylineClipper, type Polyline } from './lib';
+  import { type Line, PolylineClipper, type Polyline } from './lib';
 
   const { device }: { device: GPUDevice } = $props();
 
@@ -20,6 +20,23 @@
       points.push({ X: x, Y: y });
     }
     return points as Polyline;
+  });
+  const linesCount = 50;
+  const step = canvasSize / linesCount;
+  const lines: Line[] = new Array(linesCount).fill(null).map((_, index) => {
+    const x1 = 0;
+    const x2 = canvasSize;
+
+    return [
+      {
+        X: x1,
+        Y: index * step,
+      },
+      {
+        X: x2,
+        Y: index * step,
+      },
+    ];
   });
 
   const clipper = new PolylineClipper({ device, polygon });
@@ -60,6 +77,18 @@
         });
       });
 
+      // lines.forEach((line) => {
+      //   line.forEach((pt, i) => {
+      //     if (i === 0) {
+      //       ctx.beginPath();
+      //       ctx.moveTo(pt.X, pt.Y);
+      //     } else {
+      //       ctx.lineTo(pt.X, pt.Y);
+      //       ctx.stroke();
+      //     }
+      //   });
+      // });
+
       ctx.strokeStyle = 'rgba(0, 245, 0)';
       ctx.lineWidth = 2;
 
@@ -74,6 +103,8 @@
         });
         ctx.stroke();
       });
+
+      console.log(result);
     }
   };
 
