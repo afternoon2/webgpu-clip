@@ -1,6 +1,4 @@
-# webgpu-clip
-
-## POC of (poly)line clipping using WebGPU's compute shaders
+# webgpu-clip (POC)
 
 ![Demo image](public/demo.png "Title")
 
@@ -11,6 +9,8 @@ Clipping lines and polylines on CPU is feasible, but might be slow, especially w
 This repository contains 2 utility classes, one for clipping lines (2-points long arrays), which is useful for fast shape filling with color. The second one is for complex polylines, such as patterns that intersect given shape.
 
 **Both utilities are not fully tested and might produce incorrect results**
+
+Edge cases like curved (spirals) or really complex polygons with hundreds of edges are not well handled yet.
 
 ### Line clipping
 
