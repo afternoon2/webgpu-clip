@@ -45,7 +45,7 @@ export class PolylineClipper extends Clipper<Polyline> {
     workgroupSize,
   }: PolylineClipperConfig) {
     const ws = workgroupSize ?? 64;
-    const mi = maxIntersectionsPerSegment ?? 32;
+    const mi = maxIntersectionsPerSegment ?? 64;
     const mc = maxClippedVerticesPerSegment ?? 64;
     super(polygon, BIND_GROUP_LAYOUT_ENTRIES, getShader(ws, mi), device);
     this.maxIntersectionsPerSegment = mi;
@@ -76,7 +76,9 @@ export class PolylineClipper extends Clipper<Polyline> {
     verticesBuffer.unmap();
 
     const numSegments = polylines.reduce((sum, polyline) => {
-      sum += polyline.length - 1;
+      // same length for 2-points-long polylines because the endpoint of one polyline
+      // and the start point of next polyline count as the second segment (although not processed)
+      sum += polyline.length > 2 ? polyline.length - 1 : polyline.length;
       return sum;
     }, 0);
     console.log(`Segments: ${numSegments}`);
@@ -98,6 +100,8 @@ export class PolylineClipper extends Clipper<Polyline> {
       new Uint32Array([this.maxClippedVerticesPerSegment]),
     );
 
+    const numWorkgroups = Math.ceil(numSegments / this.workgroupSize);
+
     const bindGroup = this.device.createBindGroup({
       layout: this.pipeline.getBindGroupLayout(0),
       entries: [
@@ -110,8 +114,6 @@ export class PolylineClipper extends Clipper<Polyline> {
         },
       ],
     });
-
-    const numWorkgroups = Math.ceil(numSegments / this.workgroupSize);
 
     const commandEncoder = this.device.createCommandEncoder();
     const passEncoder = commandEncoder.beginComputePass();
@@ -143,6 +145,7 @@ export class PolylineClipper extends Clipper<Polyline> {
     console.log(
       `Raw clipping takes ${performance.getEntriesByName('rawClipping')[0].duration / 1000} sec`,
     );
+
     const parsedClippedData = this.parseClippedPolyline(
       clippedData,
       numSegments,

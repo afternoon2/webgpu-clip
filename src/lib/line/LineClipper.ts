@@ -1,10 +1,10 @@
 import { Clipper } from '../Clipper';
-import { Line, Polygon, Polyline } from '../types';
+import * as types from '../types';
 import { code } from './shader';
 
 export type LineClipperConfig = {
   device: GPUDevice;
-  polygon: Polygon;
+  polygon: types.Polygon;
   maxIntersectionsPerLine?: number;
 };
 
@@ -31,7 +31,7 @@ const BIND_GROUP_LAYOUT_ENTRIES: GPUBindGroupLayoutEntry[] = [
   },
 ];
 
-export class LineClipper extends Clipper<Line> {
+export class LineClipper extends Clipper<types.Line> {
   maxIntersectionsPerLine: number;
 
   constructor({
@@ -52,9 +52,9 @@ export class LineClipper extends Clipper<Line> {
     this.edgesBuffer.unmap();
   }
 
-  async clip(lines: Line[]): Promise<Line[]> {
+  async clip(lines: types.Line[]): Promise<types.Line[]> {
     const lineData = new Float32Array(
-      LineClipper.flattenPointList(lines.flat() as Polyline),
+      LineClipper.flattenPointList(lines.flat() as types.Polyline),
     );
     const lineBuffer = this.device.createBuffer({
       size: lineData.byteLength,
@@ -127,7 +127,7 @@ export class LineClipper extends Clipper<Line> {
     const clippedLinesData = new Float32Array(
       readClippedLinesBuffer.getMappedRange(),
     );
-    const clippedLines: Line[] = [];
+    const clippedLines: types.Line[] = [];
     for (let i = 0; i < clippedLinesData.length; i += 4) {
       clippedLines.push([
         { X: clippedLinesData[i], Y: clippedLinesData[i + 1] },

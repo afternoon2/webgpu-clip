@@ -1,4 +1,4 @@
-import { Line, Polygon, Polyline } from './types';
+import { type Line, type Polygon, type Polyline } from './types';
 
 export abstract class Clipper<T extends Polyline | Line> {
   protected edgesBuffer: GPUBuffer;
