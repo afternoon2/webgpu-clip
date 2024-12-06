@@ -37,6 +37,10 @@ export class PolylineClipper extends Clipper<Polyline> {
   private maxClippedVerticesPerSegment: number;
   private workgroupSize: number;
 
+  polylinesLength: number = 0;
+  verticesLength: number = 0;
+  segmentsCount: number = 0;
+
   constructor({
     device,
     polygon,
@@ -55,7 +59,7 @@ export class PolylineClipper extends Clipper<Polyline> {
 
   async clip(polylines: Polyline[]): Promise<Polyline[]> {
     performance.mark('rawClippingStart');
-    console.log(`Polylines: ${polylines.length}`);
+    this.polylinesLength = polylines.length;
 
     const vertices = polylines.flatMap((polyline, polylineIndex) =>
       polyline.flatMap((pt, pointIndex) => [
@@ -65,7 +69,7 @@ export class PolylineClipper extends Clipper<Polyline> {
         pointIndex,
       ]),
     );
-    console.log(`Vertices: ${vertices.length / 4}`);
+    this.verticesLength = vertices.length;
     const verticesArray = new Float32Array(vertices);
     const verticesBuffer = this.device.createBuffer({
       size: verticesArray.byteLength,
@@ -82,6 +86,8 @@ export class PolylineClipper extends Clipper<Polyline> {
       return sum;
     }, 0);
     console.log(`Segments: ${numSegments}`);
+    this.segmentsCount = numSegments;
+
     const cols = this.maxClippedVerticesPerSegment * 4;
 
     const clippedPolylineBuffer = this.device.createBuffer({

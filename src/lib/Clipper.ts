@@ -6,13 +6,17 @@ export abstract class Clipper<T extends Polyline | Line> {
   protected bindGroupLayout: GPUBindGroupLayout;
   protected pipeline: GPUComputePipeline;
 
+  edgesCount: number;
+
   constructor(
     polygon: Polygon,
     layoutEntries: GPUBindGroupLayoutEntry[],
     shader: string,
     protected device: GPUDevice,
   ) {
-    const edgeData = new Float32Array(Clipper.convertPolygonToEdges(polygon));
+    const edges = Clipper.convertPolygonToEdges(polygon);
+    const edgeData = new Float32Array(edges);
+    this.edgesCount = edges.length;
     this.edgesBuffer = this.device.createBuffer({
       size: edgeData.byteLength,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,

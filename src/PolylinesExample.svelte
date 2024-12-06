@@ -5,7 +5,15 @@
 
   const { device }: { device: GPUDevice } = $props();
 
+  type Metadata = {
+    polylines: number;
+    vertices: number;
+    segments: number;
+    edges: number;
+  };
+
   let canvas: HTMLCanvasElement = $state() as HTMLCanvasElement;
+  let metadata: Metadata | undefined = $state();
   const canvasSize = 500;
 
   let timing: number | null = $state(null);
@@ -24,6 +32,19 @@
     }
     return points as Polyline;
   });
+
+  const getMetadataLabel = (label: keyof Metadata): string => {
+    switch (label) {
+      case 'edges':
+        return 'Polygon edges';
+      case 'polylines':
+        return 'Polylines to clip';
+      case 'segments':
+        return 'Polyline segments';
+      case 'vertices':
+        return 'Total vertices';
+    }
+  };
 
   performance.mark('PolylineClipperStart');
   const clipper = new PolylineClipper({ device, polygon });
@@ -72,18 +93,6 @@
         });
       });
 
-      // lines.forEach((line) => {
-      //   line.forEach((pt, i) => {
-      //     if (i === 0) {
-      //       ctx.beginPath();
-      //       ctx.moveTo(pt.X, pt.Y);
-      //     } else {
-      //       ctx.lineTo(pt.X, pt.Y);
-      //       ctx.stroke();
-      //     }
-      //   });
-      // });
-
       ctx.strokeStyle = 'rgba(0, 245, 0)';
       ctx.lineWidth = 2;
 
@@ -99,7 +108,12 @@
         ctx.stroke();
       });
 
-      console.log(result);
+      metadata = {
+        edges: clipper.edgesCount,
+        polylines: clipper.polylinesLength,
+        segments: clipper.segmentsCount,
+        vertices: clipper.verticesLength,
+      };
     }
   };
 
@@ -109,5 +123,9 @@
 </script>
 
 <Example title="PolylineClipper" {timing} {canvasSize} bind:canvas>
-  <span></span>
+  {#if metadata}
+    {#each Object.entries(metadata) as [keyof Metadata, number][] as [label, value]}
+      <span>{getMetadataLabel(label)}: <b>{value}</b></span>
+    {/each}
+  {/if}
 </Example>

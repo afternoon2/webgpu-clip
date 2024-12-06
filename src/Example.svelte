@@ -37,6 +37,7 @@
   fieldset {
     width: 50%;
     margin-bottom: 1rem;
+    min-height: 750px;
   }
 
   legend {

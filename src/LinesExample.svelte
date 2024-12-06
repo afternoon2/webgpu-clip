@@ -31,6 +31,8 @@
   performance.mark('LineClipperStart');
   const clipper = new LineClipper({ device, polygon });
 
+  let edgesCount = $state(clipper.edgesCount);
+
   const load = async () => {
     if (canvas) {
       const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
@@ -89,6 +91,7 @@
   });
 </script>
 
-<Example title="LineClipper" {timing} {canvasSize} bind:canvas
-  ><span></span></Example
->
+<Example title="LineClipper" {timing} {canvasSize} bind:canvas>
+  <span>Polygon edges: <b>{edgesCount}</b></span>
+  <span>Lines to clip: <b>{linesCount}</b></span>
+</Example>

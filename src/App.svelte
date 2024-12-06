@@ -52,6 +52,7 @@
 
   main {
     width: 100%;
+    max-width: 1100px;
     display: flex;
     align-items: center;
     padding: 16px;
