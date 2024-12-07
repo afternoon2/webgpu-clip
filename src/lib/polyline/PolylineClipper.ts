@@ -1,5 +1,10 @@
 import { Clipper } from '../Clipper';
-import { Polygon, Polyline, PolylineCollection } from '../types';
+import {
+  type Point,
+  type Polygon,
+  type Polyline,
+  type PolylineCollection,
+} from '../types';
 import { getShader } from './getShader';
 
 export type PolylineClipperConfig = {
@@ -201,6 +206,13 @@ export class PolylineClipper extends Clipper<Polyline> {
       }
     }
 
+    // Each thread in the shader processes specific segment of the input polyline.
+    // It leads to creating separate output polylines for segments where both points
+    // are within the polygon. Trying to combine them back in the shader might lead to
+    // incorrect results because thread B can't know if the thread A has already processed
+    // its segment (if not, checking for the last point in A will return incorrect values).
+    // That's why it's done in the postprocessing phase. If the last point of output polyline A is the
+    // same as the first point of output polyline B, we can make them to be one polyline.
     return polylines.reduce((collection, polyline, index) => {
       if (index === 0) {
         collection.push(polyline as Polyline);
@@ -219,11 +231,10 @@ export class PolylineClipper extends Clipper<Polyline> {
     }, [] as PolylineCollection);
   }
 
-  private static arePointsEqual(
-    p1: { X: number; Y: number },
-    p2: { X: number; Y: number },
-  ): boolean {
-    const EPSILON = 1e-6; // Tolerance for floating-point comparison
-    return Math.abs(p1.X - p2.X) < EPSILON && Math.abs(p1.Y - p2.Y) < EPSILON;
+  private static arePointsEqual(p1: Point, p2: Point): boolean {
+    return (
+      Math.abs(p1.X - p2.X) < Number.EPSILON &&
+      Math.abs(p1.Y - p2.Y) < Number.EPSILON
+    );
   }
 }
